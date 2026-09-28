@@ -1,0 +1,652 @@
+{
+  "generated_at": "2026-09-28T22:51:02Z",
+  "first_date": "1939-01-07",
+  "last_date": "2026-09-26",
+  "draw_count": 7391,
+  "wheel_rows": 77176,
+  "wheels": [
+    "bari",
+    "cagliari",
+    "firenze",
+    "genova",
+    "milano",
+    "napoli",
+    "palermo",
+    "roma",
+    "torino",
+    "venezia",
+    "nazionale"
+  ],
+  "sources": {
+    "primary": {
+      "url": "https://www.brightstarlottery.it/STORICO_ESTRAZIONI_LOTTO/storico.zip",
+      "etag": "\"a7c8c-65c691dfa243b\"",
+      "last_modified": "Sat, 26 Sep 2026 21:00:04 GMT",
+      "used": true
+    },
+    "fallback": {
+      "url": "https://www.lottoscientifico.com/archivio/lotto.zip",
+      "last_modified": "Mon, 28 Sep 2026 22:00:04 GMT",
+      "used": true,
+      "last_reconciled": "2026-09-28T22:51:02Z"
+    }
+  },
+  "years": [
+    {
+      "year": 1939,
+      "file": "data/1939.json",
+      "draw_count": 52,
+      "first_date": "1939-01-07",
+      "last_date": "1939-12-30"
+    },
+    {
+      "year": 1940,
+      "file": "data/1940.json",
+      "draw_count": 52,
+      "first_date": "1940-01-06",
+      "last_date": "1940-12-28"
+    },
+    {
+      "year": 1941,
+      "file": "data/1941.json",
+      "draw_count": 52,
+      "first_date": "1941-01-04",
+      "last_date": "1941-12-27"
+    },
+    {
+      "year": 1942,
+      "file": "data/1942.json",
+      "draw_count": 52,
+      "first_date": "1942-01-03",
+      "last_date": "1942-12-26"
+    },
+    {
+      "year": 1943,
+      "file": "data/1943.json",
+      "draw_count": 52,
+      "first_date": "1943-01-02",
+      "last_date": "1943-12-25"
+    },
+    {
+      "year": 1944,
+      "file": "data/1944.json",
+      "draw_count": 53,
+      "first_date": "1944-01-01",
+      "last_date": "1944-12-30"
+    },
+    {
+      "year": 1945,
+      "file": "data/1945.json",
+      "draw_count": 52,
+      "first_date": "1945-01-05",
+      "last_date": "1945-12-29"
+    },
+    {
+      "year": 1946,
+      "file": "data/1946.json",
+      "draw_count": 52,
+      "first_date": "1946-01-05",
+      "last_date": "1946-12-28"
+    },
+    {
+      "year": 1947,
+      "file": "data/1947.json",
+      "draw_count": 52,
+      "first_date": "1947-01-04",
+      "last_date": "1947-12-27"
+    },
+    {
+      "year": 1948,
+      "file": "data/1948.json",
+      "draw_count": 54,
+      "first_date": "1948-01-03",
+      "last_date": "1948-12-31"
+    },
+    {
+      "year": 1949,
+      "file": "data/1949.json",
+      "draw_count": 52,
+      "first_date": "1949-01-08",
+      "last_date": "1949-12-31"
+    },
+    {
+      "year": 1950,
+      "file": "data/1950.json",
+      "draw_count": 52,
+      "first_date": "1950-01-07",
+      "last_date": "1950-12-30"
+    },
+    {
+      "year": 1951,
+      "file": "data/1951.json",
+      "draw_count": 52,
+      "first_date": "1951-01-06",
+      "last_date": "1951-12-28"
+    },
+    {
+      "year": 1952,
+      "file": "data/1952.json",
+      "draw_count": 52,
+      "first_date": "1952-01-05",
+      "last_date": "1952-12-29"
+    },
+    {
+      "year": 1953,
+      "file": "data/1953.json",
+      "draw_count": 52,
+      "first_date": "1953-01-03",
+      "last_date": "1953-12-28"
+    },
+    {
+      "year": 1954,
+      "file": "data/1954.json",
+      "draw_count": 53,
+      "first_date": "1954-01-02",
+      "last_date": "1954-12-31"
+    },
+    {
+      "year": 1955,
+      "file": "data/1955.json",
+      "draw_count": 52,
+      "first_date": "1955-01-08",
+      "last_date": "1955-12-31"
+    },
+    {
+      "year": 1956,
+      "file": "data/1956.json",
+      "draw_count": 52,
+      "first_date": "1956-01-07",
+      "last_date": "1956-12-29"
+    },
+    {
+      "year": 1957,
+      "file": "data/1957.json",
+      "draw_count": 52,
+      "first_date": "1957-01-05",
+      "last_date": "1957-12-28"
+    },
+    {
+      "year": 1958,
+      "file": "data/1958.json",
+      "draw_count": 52,
+      "first_date": "1958-01-04",
+      "last_date": "1958-12-27"
+    },
+    {
+      "year": 1959,
+      "file": "data/1959.json",
+      "draw_count": 52,
+      "first_date": "1959-01-03",
+      "last_date": "1959-12-28"
+    },
+    {
+      "year": 1960,
+      "file": "data/1960.json",
+      "draw_count": 53,
+      "first_date": "1960-01-04",
+      "last_date": "1960-12-31"
+    },
+    {
+      "year": 1961,
+      "file": "data/1961.json",
+      "draw_count": 51,
+      "first_date": "1961-01-09",
+      "last_date": "1961-12-30"
+    },
+    {
+      "year": 1962,
+      "file": "data/1962.json",
+      "draw_count": 54,
+      "first_date": "1962-01-08",
+      "last_date": "1962-12-29"
+    },
+    {
+      "year": 1963,
+      "file": "data/1963.json",
+      "draw_count": 52,
+      "first_date": "1963-01-05",
+      "last_date": "1963-12-28"
+    },
+    {
+      "year": 1964,
+      "file": "data/1964.json",
+      "draw_count": 53,
+      "first_date": "1964-01-04",
+      "last_date": "1964-12-28"
+    },
+    {
+      "year": 1965,
+      "file": "data/1965.json",
+      "draw_count": 52,
+      "first_date": "1965-01-02",
+      "last_date": "1965-12-24"
+    },
+    {
+      "year": 1966,
+      "file": "data/1966.json",
+      "draw_count": 53,
+      "first_date": "1966-01-03",
+      "last_date": "1966-12-31"
+    },
+    {
+      "year": 1967,
+      "file": "data/1967.json",
+      "draw_count": 52,
+      "first_date": "1967-01-07",
+      "last_date": "1967-12-30"
+    },
+    {
+      "year": 1968,
+      "file": "data/1968.json",
+      "draw_count": 52,
+      "first_date": "1968-01-05",
+      "last_date": "1968-12-28"
+    },
+    {
+      "year": 1969,
+      "file": "data/1969.json",
+      "draw_count": 53,
+      "first_date": "1969-01-04",
+      "last_date": "1969-12-28"
+    },
+    {
+      "year": 1970,
+      "file": "data/1970.json",
+      "draw_count": 52,
+      "first_date": "1970-01-03",
+      "last_date": "1970-12-28"
+    },
+    {
+      "year": 1971,
+      "file": "data/1971.json",
+      "draw_count": 52,
+      "first_date": "1971-01-02",
+      "last_date": "1971-12-25"
+    },
+    {
+      "year": 1972,
+      "file": "data/1972.json",
+      "draw_count": 53,
+      "first_date": "1972-01-01",
+      "last_date": "1972-12-30"
+    },
+    {
+      "year": 1973,
+      "file": "data/1973.json",
+      "draw_count": 52,
+      "first_date": "1973-01-06",
+      "last_date": "1973-12-29"
+    },
+    {
+      "year": 1974,
+      "file": "data/1974.json",
+      "draw_count": 52,
+      "first_date": "1974-01-05",
+      "last_date": "1974-12-28"
+    },
+    {
+      "year": 1975,
+      "file": "data/1975.json",
+      "draw_count": 52,
+      "first_date": "1975-01-04",
+      "last_date": "1975-12-27"
+    },
+    {
+      "year": 1976,
+      "file": "data/1976.json",
+      "draw_count": 52,
+      "first_date": "1976-01-03",
+      "last_date": "1976-12-25"
+    },
+    {
+      "year": 1977,
+      "file": "data/1977.json",
+      "draw_count": 53,
+      "first_date": "1977-01-01",
+      "last_date": "1977-12-31"
+    },
+    {
+      "year": 1978,
+      "file": "data/1978.json",
+      "draw_count": 52,
+      "first_date": "1978-01-07",
+      "last_date": "1978-12-30"
+    },
+    {
+      "year": 1979,
+      "file": "data/1979.json",
+      "draw_count": 52,
+      "first_date": "1979-01-06",
+      "last_date": "1979-12-29"
+    },
+    {
+      "year": 1980,
+      "file": "data/1980.json",
+      "draw_count": 52,
+      "first_date": "1980-01-05",
+      "last_date": "1980-12-27"
+    },
+    {
+      "year": 1981,
+      "file": "data/1981.json",
+      "draw_count": 52,
+      "first_date": "1981-01-03",
+      "last_date": "1981-12-26"
+    },
+    {
+      "year": 1982,
+      "file": "data/1982.json",
+      "draw_count": 52,
+      "first_date": "1982-01-02",
+      "last_date": "1982-12-25"
+    },
+    {
+      "year": 1983,
+      "file": "data/1983.json",
+      "draw_count": 53,
+      "first_date": "1983-01-01",
+      "last_date": "1983-12-31"
+    },
+    {
+      "year": 1984,
+      "file": "data/1984.json",
+      "draw_count": 52,
+      "first_date": "1984-01-07",
+      "last_date": "1984-12-29"
+    },
+    {
+      "year": 1985,
+      "file": "data/1985.json",
+      "draw_count": 52,
+      "first_date": "1985-01-05",
+      "last_date": "1985-12-28"
+    },
+    {
+      "year": 1986,
+      "file": "data/1986.json",
+      "draw_count": 52,
+      "first_date": "1986-01-04",
+      "last_date": "1986-12-27"
+    },
+    {
+      "year": 1987,
+      "file": "data/1987.json",
+      "draw_count": 52,
+      "first_date": "1987-01-03",
+      "last_date": "1987-12-26"
+    },
+    {
+      "year": 1988,
+      "file": "data/1988.json",
+      "draw_count": 53,
+      "first_date": "1988-01-02",
+      "last_date": "1988-12-31"
+    },
+    {
+      "year": 1989,
+      "file": "data/1989.json",
+      "draw_count": 52,
+      "first_date": "1989-01-07",
+      "last_date": "1989-12-30"
+    },
+    {
+      "year": 1990,
+      "file": "data/1990.json",
+      "draw_count": 52,
+      "first_date": "1990-01-08",
+      "last_date": "1990-12-29"
+    },
+    {
+      "year": 1991,
+      "file": "data/1991.json",
+      "draw_count": 52,
+      "first_date": "1991-01-05",
+      "last_date": "1991-12-28"
+    },
+    {
+      "year": 1992,
+      "file": "data/1992.json",
+      "draw_count": 52,
+      "first_date": "1992-01-04",
+      "last_date": "1992-12-28"
+    },
+    {
+      "year": 1993,
+      "file": "data/1993.json",
+      "draw_count": 52,
+      "first_date": "1993-01-02",
+      "last_date": "1993-12-27"
+    },
+    {
+      "year": 1994,
+      "file": "data/1994.json",
+      "draw_count": 53,
+      "first_date": "1994-01-03",
+      "last_date": "1994-12-31"
+    },
+    {
+      "year": 1995,
+      "file": "data/1995.json",
+      "draw_count": 52,
+      "first_date": "1995-01-07",
+      "last_date": "1995-12-30"
+    },
+    {
+      "year": 1996,
+      "file": "data/1996.json",
+      "draw_count": 52,
+      "first_date": "1996-01-08",
+      "last_date": "1996-12-28"
+    },
+    {
+      "year": 1997,
+      "file": "data/1997.json",
+      "draw_count": 95,
+      "first_date": "1997-01-04",
+      "last_date": "1997-12-31"
+    },
+    {
+      "year": 1998,
+      "file": "data/1998.json",
+      "draw_count": 104,
+      "first_date": "1998-01-03",
+      "last_date": "1998-12-30"
+    },
+    {
+      "year": 1999,
+      "file": "data/1999.json",
+      "draw_count": 104,
+      "first_date": "1999-01-02",
+      "last_date": "1999-12-29"
+    },
+    {
+      "year": 2000,
+      "file": "data/2000.json",
+      "draw_count": 105,
+      "first_date": "2000-01-03",
+      "last_date": "2000-12-30"
+    },
+    {
+      "year": 2001,
+      "file": "data/2001.json",
+      "draw_count": 105,
+      "first_date": "2001-01-03",
+      "last_date": "2001-12-31"
+    },
+    {
+      "year": 2002,
+      "file": "data/2002.json",
+      "draw_count": 109,
+      "first_date": "2002-01-02",
+      "last_date": "2002-12-31"
+    },
+    {
+      "year": 2003,
+      "file": "data/2003.json",
+      "draw_count": 105,
+      "first_date": "2003-01-02",
+      "last_date": "2003-12-31"
+    },
+    {
+      "year": 2004,
+      "file": "data/2004.json",
+      "draw_count": 104,
+      "first_date": "2004-01-03",
+      "last_date": "2004-12-29"
+    },
+    {
+      "year": 2005,
+      "file": "data/2005.json",
+      "draw_count": 133,
+      "first_date": "2005-01-03",
+      "last_date": "2005-12-31"
+    },
+    {
+      "year": 2006,
+      "file": "data/2006.json",
+      "draw_count": 156,
+      "first_date": "2006-01-03",
+      "last_date": "2006-12-30"
+    },
+    {
+      "year": 2007,
+      "file": "data/2007.json",
+      "draw_count": 156,
+      "first_date": "2007-01-02",
+      "last_date": "2007-12-29"
+    },
+    {
+      "year": 2008,
+      "file": "data/2008.json",
+      "draw_count": 157,
+      "first_date": "2008-01-02",
+      "last_date": "2008-12-30"
+    },
+    {
+      "year": 2009,
+      "file": "data/2009.json",
+      "draw_count": 157,
+      "first_date": "2009-01-02",
+      "last_date": "2009-12-31"
+    },
+    {
+      "year": 2010,
+      "file": "data/2010.json",
+      "draw_count": 156,
+      "first_date": "2010-01-02",
+      "last_date": "2010-12-30"
+    },
+    {
+      "year": 2011,
+      "file": "data/2011.json",
+      "draw_count": 157,
+      "first_date": "2011-01-03",
+      "last_date": "2011-12-31"
+    },
+    {
+      "year": 2012,
+      "file": "data/2012.json",
+      "draw_count": 156,
+      "first_date": "2012-01-03",
+      "last_date": "2012-12-29"
+    },
+    {
+      "year": 2013,
+      "file": "data/2013.json",
+      "draw_count": 157,
+      "first_date": "2013-01-02",
+      "last_date": "2013-12-31"
+    },
+    {
+      "year": 2014,
+      "file": "data/2014.json",
+      "draw_count": 156,
+      "first_date": "2014-01-02",
+      "last_date": "2014-12-30"
+    },
+    {
+      "year": 2015,
+      "file": "data/2015.json",
+      "draw_count": 157,
+      "first_date": "2015-01-02",
+      "last_date": "2015-12-31"
+    },
+    {
+      "year": 2016,
+      "file": "data/2016.json",
+      "draw_count": 157,
+      "first_date": "2016-01-02",
+      "last_date": "2016-12-31"
+    },
+    {
+      "year": 2017,
+      "file": "data/2017.json",
+      "draw_count": 156,
+      "first_date": "2017-01-03",
+      "last_date": "2017-12-30"
+    },
+    {
+      "year": 2018,
+      "file": "data/2018.json",
+      "draw_count": 156,
+      "first_date": "2018-01-02",
+      "last_date": "2018-12-29"
+    },
+    {
+      "year": 2019,
+      "file": "data/2019.json",
+      "draw_count": 157,
+      "first_date": "2019-01-02",
+      "last_date": "2019-12-31"
+    },
+    {
+      "year": 2020,
+      "file": "data/2020.json",
+      "draw_count": 139,
+      "first_date": "2020-01-02",
+      "last_date": "2020-12-31"
+    },
+    {
+      "year": 2021,
+      "file": "data/2021.json",
+      "draw_count": 156,
+      "first_date": "2021-01-02",
+      "last_date": "2021-12-30"
+    },
+    {
+      "year": 2022,
+      "file": "data/2022.json",
+      "draw_count": 157,
+      "first_date": "2022-01-03",
+      "last_date": "2022-12-31"
+    },
+    {
+      "year": 2023,
+      "file": "data/2023.json",
+      "draw_count": 182,
+      "first_date": "2023-01-03",
+      "last_date": "2023-12-30"
+    },
+    {
+      "year": 2024,
+      "file": "data/2024.json",
+      "draw_count": 209,
+      "first_date": "2024-01-02",
+      "last_date": "2024-12-31"
+    },
+    {
+      "year": 2025,
+      "file": "data/2025.json",
+      "draw_count": 208,
+      "first_date": "2025-01-02",
+      "last_date": "2025-12-30"
+    },
+    {
+      "year": 2026,
+      "file": "data/2026.json",
+      "draw_count": 155,
+      "first_date": "2026-01-02",
+      "last_date": "2026-09-26"
+    }
+  ]
+}
