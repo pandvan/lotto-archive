@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/pandvan/lotto-archive/main/schema/year.schema.json",
+  "title": "Lotto draws for one calendar year",
+  "type": "object",
+  "required": ["year", "draw_count", "first_date", "last_date", "draws"],
+  "additionalProperties": false,
+  "properties": {
+    "year": { "type": "integer", "minimum": 1939 },
+    "draw_count": { "type": "integer", "minimum": 1 },
+    "first_date": { "type": "string", "format": "date" },
+    "last_date": { "type": "string", "format": "date" },
+    "draws": {
+      "type": "array",
+      "minItems": 1,
+      "description": "Draws in ascending date order.",
+      "items": { "$ref": "draw.schema.json" }
+    }
+  }
+}
