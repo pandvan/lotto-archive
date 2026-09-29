@@ -1,0 +1,65 @@
+name: Publish the statistics site
+
+# The site is derived from the archive, so it is rebuilt whenever the archive moves
+# and whenever the page itself changes. It is never committed.
+#
+# A push made with GITHUB_TOKEN does not start another workflow, so the daily data
+# commit from "Update archive" would never reach a `push` trigger here. `workflow_run`
+# is the trigger that does fire for it.
+on:
+  workflow_run:
+    workflows: ['Update archive', 'Reconcile with fallback']
+    types: [completed]
+  push:
+    branches: [main]
+    paths:
+      - 'web/**'
+      - 'scripts/**'
+      - 'data/**'
+      - '.github/workflows/pages.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    # On a workflow_run trigger, only publish when the run that produced the data
+    # actually succeeded; a failed update must not republish anything.
+    if: >-
+      github.event_name != 'workflow_run' ||
+      github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+
+      # scripts/build_site.py reads the committed JSON and writes HTML and JSON; it
+      # imports nothing outside the standard library, so there is nothing to install.
+      - name: Build the site
+        run: python scripts/build_site.py
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

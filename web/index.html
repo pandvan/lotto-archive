@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Statistiche del Lotto — archivio dal 1939</title>
+<meta name="description" content="Ritardi, frequenze, ambi, cadenze e figure di ogni ruota del Lotto, calcolati su tutte le estrazioni dal 7 gennaio 1939. Dati aperti, aggiornati automaticamente.">
+<meta name="color-scheme" content="light dark">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <h1>Statistiche del Lotto</h1>
+    <p class="sub" id="sub">Caricamento…</p>
+
+    <section class="latest" id="latest" hidden>
+      <h2 id="latest-title">Ultima estrazione</h2>
+      <div class="latest-grid" id="latest-grid"></div>
+    </section>
+
+    <aside class="notice">
+      <p><strong>Come leggere questa pagina.</strong> Ogni tabella descrive quello che
+        è <em>già</em> uscito. Nessuna di queste statistiche dice niente sulla prossima
+        estrazione: le estrazioni sono indipendenti, e un numero con 150 di ritardo ha
+        esattamente la stessa probabilità di uscire di uno uscito ieri.</p>
+      <p>Per questo accanto a ogni frequenza c'è la <em>frequenza attesa</em>, e la
+        scheda <em>Verifica</em> misura col test del chi quadro se gli scostamenti
+        osservati superano quelli che il caso produce comunque. Non li superano.</p>
+    </aside>
+  </header>
+
+  <div class="filters">
+    <div class="field">
+      <label for="wheel">Ruota</label>
+      <select id="wheel"></select>
+    </div>
+    <div class="field">
+      <label for="period">Periodo</label>
+      <select id="period"></select>
+    </div>
+    <div class="spacer"></div>
+    <div class="field">
+      <label for="theme">Tema</label>
+      <button id="theme" type="button" title="Cambia tema">Auto</button>
+    </div>
+  </div>
+
+  <nav class="tabs" id="tabs" role="tablist" aria-label="Statistiche"></nav>
+
+  <main id="view" role="tabpanel" aria-live="polite"></main>
+
+  <footer>
+    <p id="footer-meta"></p>
+    <p>Dati e codice: <a id="repo-link" href="https://github.com/pandvan/lotto-archive">github.com/pandvan/lotto-archive</a>.
+      Archivio di dati di terze parti, senza alcun legame con i gestori del gioco.
+      Il Lotto è un gioco a probabilità fissa: si può perdere denaro. Vietato ai minori di 18 anni.</p>
+  </footer>
+
+</div>
+
+<div class="tip" id="tip" role="status" hidden></div>
+
+<script src="app.js"></script>
+</body>
+</html>

@@ -22,3 +22,5 @@ jobs:
       - run: python -m pytest -q
       - name: Validate the committed archive
         run: python scripts/validate.py
+      - name: Build the statistics site
+        run: python scripts/build_site.py
