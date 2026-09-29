@@ -128,6 +128,54 @@ results, and the derived contest numbers match the fallback's own `CONCORSO` fie
 This repository is a mirror of third-party data and is not affiliated with the operators of
 the Italian Lotto. Its correctness ultimately depends on those upstream sources.
 
+## Statistics site
+
+A static site with the statistics people actually look for — ritardi, frequenze, ambi,
+cadenze, figure, decine, numeri spia — is generated from the same JSON and published to
+GitHub Pages. Nothing about it is committed: `scripts/build_site.py` rebuilds `site/`
+from `data/`, and `.github/workflows/pages.yml` republishes it whenever the archive
+moves.
+
+```bash
+.venv/bin/python scripts/build_site.py          # writes site/
+.venv/bin/python scripts/build_site.py --pretty # readable JSON, for inspecting it
+python -m http.server -d site 8000              # then open http://localhost:8000
+```
+
+| Path | What it is |
+|---|---|
+| `web/` | The page itself — hand-written HTML, CSS and JS, no dependencies |
+| `scripts/build_site.py` | Copies `web/`, then writes the computed JSON next to it |
+| `site/` | Build output: the page plus `data/meta.json` and `data/wheels/<wheel>.json` |
+
+What it computes, per wheel and for the union of all wheels, over the whole archive and
+over the last 500 and last 100 draws:
+
+| Statistic | Module |
+|---|---|
+| Tabellone: delay, frequency, record delay, last seen | `lotto/tabellone.py` |
+| Frequency by extraction position | `lotto/stats.py` |
+| Pair (*ambo*) rankings, by frequency and by delay | `lotto/stats.py` |
+| Cadenza, figura and decina groupings | `lotto/stats.py` |
+| Odd/even, high/low and sum-of-five distributions | `lotto/stats.py` |
+| Follower (*numero spia*) counts with their standard scores | `lotto/stats.py` |
+| Chi-square test of equiprobability | `lotto/stats.py` |
+| Coverage: draws per year, per weekday, per wheel | `lotto/stats.py` |
+
+Two rules keep the thing honest, and they are worth stating because this kind of page
+usually breaks both:
+
+- **Every observed figure is published next to its reference value** — the frequency
+  expected under equiprobability, the hypergeometric expectation for a five-number draw,
+  the standard score of a follower count. A frequency without its expectation invites the
+  reader to see a pattern in noise.
+- **The page says plainly that none of it predicts anything.** Draws are independent; a
+  number 150 draws late is exactly as likely as one drawn yesterday. The chi-square tab
+  measures whether the archive departs from equiprobability at all. It does not.
+
+The generated JSON uses English keys and carries no prose; every Italian label lives in
+`web/app.js`, which is also the only place the lotto vocabulary appears.
+
 ## Development
 
 ```bash
@@ -143,6 +191,7 @@ python -m venv .venv && .venv/bin/pip install -r requirements-dev.txt
 | `scripts/update.py` | Incremental update, primary first |
 | `scripts/reconcile.py` | Cross-check against the fallback |
 | `scripts/validate.py` | Validate the committed archive |
+| `scripts/build_site.py` | Build the static statistics site into `site/` |
 
 Useful flags: `--dry-run`, `--force-refetch`, `--now <iso>` (pretend it is another time,
 to exercise the staleness logic), `--allow-history-rewrite`.
