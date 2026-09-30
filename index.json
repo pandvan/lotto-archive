@@ -1,9 +1,9 @@
 {
-  "generated_at": "2026-09-28T22:51:02Z",
+  "generated_at": "2026-09-30T11:02:28Z",
   "first_date": "1939-01-07",
-  "last_date": "2026-09-26",
-  "draw_count": 7391,
-  "wheel_rows": 77176,
+  "last_date": "2026-09-29",
+  "draw_count": 7392,
+  "wheel_rows": 77187,
   "wheels": [
     "bari",
     "cagliari",
@@ -20,14 +20,14 @@
   "sources": {
     "primary": {
       "url": "https://www.brightstarlottery.it/STORICO_ESTRAZIONI_LOTTO/storico.zip",
-      "etag": "\"a7c8c-65c691dfa243b\"",
-      "last_modified": "Sat, 26 Sep 2026 21:00:04 GMT",
+      "etag": "\"a7ceb-65ca5776e8253\"",
+      "last_modified": "Tue, 29 Sep 2026 21:00:03 GMT",
       "used": true
     },
     "fallback": {
       "url": "https://www.lottoscientifico.com/archivio/lotto.zip",
       "last_modified": "Mon, 28 Sep 2026 22:00:04 GMT",
-      "used": true,
+      "used": false,
       "last_reconciled": "2026-09-28T22:51:02Z"
     }
   },
@@ -644,9 +644,9 @@
     {
       "year": 2026,
       "file": "data/2026.json",
-      "draw_count": 155,
+      "draw_count": 156,
       "first_date": "2026-01-02",
-      "last_date": "2026-09-26"
+      "last_date": "2026-09-29"
     }
   ]
 }
