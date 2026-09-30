@@ -214,9 +214,29 @@ How a formula is applied:
    number exactly `SearchDrm`.
 2. **Isotopia** — reported when two of the matching wheels hold a search number in the
    same extraction position. It is recorded, not required.
-3. **Retrovisione** — each bet is checked against the `Rear` preceding draws **on the
-   matching wheels only**. A bet whose numbers already came out there is rejected, with
-   where and when; what is left is the clean play.
+3. **Retrovisione** — each bet is checked against the `Rear` preceding draws. A bet
+   whose numbers already came out there is rejected, with where and when; what is left
+   is the clean play.
+
+`--scope` chooses how many wheels that last check searches. The subject is always the
+bet's numbers over the same `Rear` draws:
+
+| `--scope` | Searches | |
+|---|---|---|
+| `strict` | every wheel that drew | a number out anywhere burns the bet |
+| `medium` | the wheels of the match | **default** — what `checkRearView` does |
+| `loose` | each of those wheels on its own | a bet burnt on one wheel stays playable on the other, and is reported once per wheel |
+
+```
+$ scripts/formula.py --listing frm/allor.integrale.2019.frm --date 2026-09-01 --scope loose
+
+  1. formula 35  35-53-80  on milano 53 · roma 35 80
+     ambo      78-8 on milano (out: 78 on milano 2026-08-25, position 4) · 78-8 on roma
+```
+
+The same bet under `--scope medium` is simply rejected, and under `strict` it is rejected
+by 8 coming out on palermo — a wheel with no part in the match at all. They nest: strict
+rejects at least as much as medium, medium at least as much as loose.
 
 A formula's bets are five lists — **ambate, ambi, terni, quaterne, cinquine** — and any
 of them may be empty. A formula with no bets at all is legal: it reports where its
@@ -228,8 +248,15 @@ numbers landed, and the retrovisione has nothing to check.
 | `-s/--search` | one formula written inline, `"14 1 62 # 43 19 # 27"` (commas work) |
 | `-w/--wheels Y` | stands in for `SearchDrm` with `--search` (default 2) |
 | `-z/--lookback Z` | stands in for `Rear` with `--search` (default 9) |
+| `--scope` | `strict` / `medium` / `loose` — wheels the retrovisione searches |
+| `--clean` | keep only matches the retrovisione left untouched |
 | `--date`, `--scan`, `--since`, `--until` | one draw, or every draw of a range |
 | `--json` | the report as JSON |
+
+`--clean` is the filter worth reaching for on a long scan: it keeps only the matches
+whose bets all survived the retrovisione, which is most of what makes a match
+interesting. Over 2026, `allor.integrale.2019` matched on 108 draws and exactly one of
+them came through clean. A formula that plays no bets has nothing to burn and is kept.
 
 A whole-archive `--scan` takes about two seconds. Before 2005 only a handful of wheels
 drew, so a formula behaves differently there; `--since 2005-05-04` is where all eleven

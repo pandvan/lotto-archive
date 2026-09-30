@@ -298,3 +298,132 @@ def test_a_directory_is_swept_for_listings_but_not_disabled_ones(tmp_path):
     # Naming the disabled one converts it anyway.
     named = tmp_path / "b.frm.no"
     assert convert_formulas.sources([named]) == [named]
+
+
+# ------------------------------------------------------------------ clean only
+
+
+def burnt(tmp_path):
+    """A draw whose one match has its only bet already out on a matching wheel."""
+    return archive(
+        QUIET,
+        {"bari": [30, 1, 2, 3, 4], "roma": [5, 6, 7, 8, 9]},
+        {"bari": [71, 1, 2, 3, 4], "roma": [81, 5, 6, 7, 8]},
+    ), one_formula(tmp_path)
+
+
+def test_clean_only_drops_a_match_the_retrovisione_burnt(tmp_path):
+    draws, built = burnt(tmp_path)
+    assert listing.apply(draws, day(3), built).satisfied
+    assert not listing.apply(draws, day(3), built, clean_only=True).satisfied
+
+
+def test_clean_only_keeps_a_match_nothing_was_found_for(tmp_path):
+    draws = archive(QUIET, QUIET, {"bari": [71, 1, 2, 3, 4], "roma": [81, 5, 6, 7, 8]})
+    report = listing.apply(draws, day(3), one_formula(tmp_path), clean_only=True)
+    match, = report.matches
+    assert match.all_clean
+    assert match.rejected == ()
+
+
+def test_a_formula_with_no_bets_has_nothing_to_burn(tmp_path):
+    draws = archive(QUIET, QUIET, {"bari": [71, 1, 2, 3, 4], "roma": [81, 5, 6, 7, 8]})
+    built = listing.one_formula("71 81", wheel_count=2, lookback=2)
+    assert listing.apply(draws, day(3), built, clean_only=True).satisfied
+
+
+def test_the_report_records_that_it_was_filtered(tmp_path):
+    draws, built = burnt(tmp_path)
+    assert listing.apply(draws, day(3), built, clean_only=True).as_dict()["clean_only"]
+    assert not listing.apply(draws, day(3), built).as_dict()["clean_only"]
+
+
+def test_scan_skips_a_draw_whose_only_match_was_burnt(tmp_path):
+    draws, built = burnt(tmp_path)
+    assert [r.date for r in listing.scan(draws, built)] == [day(3)]
+    assert listing.scan(draws, built, clean_only=True) == []
+
+
+# ---------------------------------------------------------------- the three scopes
+
+
+def scoped():
+    """A draw matching on bari+roma, with 30 out on bari and 31 out on milano."""
+    draws = archive(
+        QUIET,
+        {
+            "bari": [30, 1, 2, 3, 4],
+            "roma": [11, 12, 13, 14, 15],
+            "milano": [31, 16, 17, 18, 19],
+        },
+        {
+            "bari": [71, 1, 2, 3, 4],
+            "roma": [81, 5, 6, 7, 8],
+            "milano": [9, 10, 20, 21, 22],
+        },
+    )
+    return draws, listing.one_formula("71 81 # 30 # 31", wheel_count=2, lookback=2)
+
+
+def verdicts(report):
+    """{(bet numbers, wheels judged): clean}."""
+    match, = report.matches
+    return {(c.bet.numbers, c.play): c.clean for c in match.bets}
+
+
+def test_medium_searches_only_the_wheels_of_the_match():
+    draws, built = scoped()
+    # 30 was on bari, one of the two; 31 was on milano, which took no part.
+    assert verdicts(listing.apply(draws, day(3), built, scope="medium")) == {
+        ((30,), ("bari", "roma")): False,
+        ((31,), ("bari", "roma")): True,
+    }
+
+
+def test_strict_searches_every_wheel_that_drew():
+    draws, built = scoped()
+    # milano is not part of the match, but under strict it still burns 31.
+    assert verdicts(listing.apply(draws, day(3), built, scope="strict")) == {
+        ((30,), ("bari", "roma")): False,
+        ((31,), ("bari", "roma")): False,
+    }
+
+
+def test_loose_judges_each_wheel_on_its_own():
+    draws, built = scoped()
+    # 30 is burnt on bari and still playable on roma.
+    assert verdicts(listing.apply(draws, day(3), built, scope="loose")) == {
+        ((30,), ("bari",)): False,
+        ((30,), ("roma",)): True,
+        ((31,), ("bari",)): True,
+        ((31,), ("roma",)): True,
+    }
+
+
+def test_the_scopes_are_nested_in_how_much_they_reject():
+    draws, built = scoped()
+    rejected = {
+        scope: len(listing.apply(draws, day(3), built, scope=scope).matches[0].rejected)
+        for scope in listing.SCOPES
+    }
+    assert rejected["strict"] >= rejected["medium"] >= rejected["loose"]
+
+
+def test_clean_only_under_loose_needs_every_wheel_clean():
+    draws, built = scoped()
+    # 30 is burnt on bari, so the match is not wholly clean on any scope.
+    for scope in listing.SCOPES:
+        report = listing.apply(draws, day(3), built, clean_only=True, scope=scope)
+        assert not report.satisfied, scope
+
+
+def test_the_report_records_the_scope():
+    draws, built = scoped()
+    assert listing.apply(draws, day(3), built, scope="loose").as_dict()["scope"] == "loose"
+    assert listing.apply(draws, day(3), built).as_dict()["scope"] == "medium"
+
+
+def test_an_unknown_scope_is_refused():
+    draws, built = scoped()
+    with pytest.raises(LottoError):
+        listing.apply(draws, day(3), built, scope="whatever")

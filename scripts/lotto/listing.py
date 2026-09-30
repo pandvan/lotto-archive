@@ -21,8 +21,9 @@ the *retrovisione* reaches.
 A formula matches a draw when every one of its search numbers came out on **exactly
 one** wheel -- a number on two wheels makes the play *sporca* and drops the formula --
 and those wheels number exactly ``SearchDrm``. The bets of a matching formula are then
-each checked against the ``Rear`` draws before it, **on the matching wheels only**: a
-bet any of whose numbers already came out there is reported as rejected.
+each checked against the ``Rear`` draws before it: a bet any of whose numbers already
+came out there is reported as rejected. How many wheels that check searches is the
+*scope* -- :data:`SCOPES`; the original searches the matching wheels.
 
 Both the numbers and the bets are written down in advance; the archive only says
 whether they came up. Nothing here makes a number more likely to be drawn -- a formula
@@ -53,6 +54,19 @@ BET_NAMES: dict[int, str] = {
 #: The five bet lists a formula carries, smallest first. Every formula has all five;
 #: any of them may be empty.
 BET_ORDER: tuple[str, ...] = tuple(BET_NAMES[size] for size in sorted(BET_NAMES))
+
+#: How wide the retrovisione looks, narrowest check last.
+#:
+#: The subject is always the bet's numbers over the ``lookback`` preceding draws -- what
+#: changes is which wheels are searched:
+#:
+#: ``strict``  every wheel that drew. A number out anywhere burns the bet.
+#: ``medium``  the wheels of the match. This is what lotto-convergence does:
+#:            ``checkRearView`` searches ``getWholeDraw(one)`` and ``getWholeDraw(two)``.
+#: ``loose``   one wheel at a time, so a bet burnt on one wheel of the match stays
+#:            playable on the other and is reported once per wheel.
+SCOPES: tuple[str, ...] = ("strict", "medium", "loose")
+DEFAULT_SCOPE = "medium"
 
 #: Header defaults of the original program, used when a formula is typed out instead
 #: of read from a file that carries its own header.
@@ -144,6 +158,9 @@ class CheckedBet:
 
     bet: Bet
     clean: bool
+    #: The wheels this verdict covers: the match's wheels, or one of them under
+    #: ``loose``, where each wheel is judged on its own.
+    play: tuple[str, ...] = ()
     seen_number: int | None = None
     seen_wheel: str | None = None
     seen_date: datetime.date | None = None
@@ -151,7 +168,11 @@ class CheckedBet:
     seen_position: int | None = None
 
     def as_dict(self) -> dict:
-        out = {"numbers": list(self.bet.numbers), "clean": self.clean}
+        out = {
+            "numbers": list(self.bet.numbers),
+            "play": list(self.play),
+            "clean": self.clean,
+        }
         if not self.clean:
             out["seen"] = {
                 "number": self.seen_number,
@@ -179,6 +200,19 @@ class Match:
         return tuple(bet for bet in self.bets if bet.clean)
 
     @property
+    def rejected(self) -> tuple[CheckedBet, ...]:
+        return tuple(bet for bet in self.bets if not bet.clean)
+
+    @property
+    def all_clean(self) -> bool:
+        """Did the retrovisione find nothing at all?
+
+        A formula that plays no bets is clean the way an empty sum is zero: there was
+        nothing to look for, so nothing was found.
+        """
+        return not self.rejected
+
+    @property
     def by_type(self) -> dict[str, tuple[CheckedBet, ...]]:
         """The five bet lists as checked, in file order within each."""
         return group_by_type(self.bets, lambda checked: checked.bet)
@@ -204,6 +238,10 @@ class ListingReport:
     listing: Listing
     history: int
     matches: tuple[Match, ...] = ()
+    #: Only matches whose bets all survived the retrovisione were kept.
+    clean_only: bool = False
+    #: Which wheels the retrovisione searched -- see :data:`SCOPES`.
+    scope: str = DEFAULT_SCOPE
 
     @property
     def satisfied(self) -> bool:
@@ -222,6 +260,8 @@ class ListingReport:
             "lookback": self.listing.lookback,
             "history": self.history,
             "short_history": self.short_history,
+            "clean_only": self.clean_only,
+            "scope": self.scope,
             "satisfied": self.satisfied,
             "matches": [match.as_dict() for match in self.matches],
         }
@@ -382,30 +422,68 @@ def check_rear(
     bet: Bet,
     wheels: tuple[str, ...],
     lookback: int,
-) -> CheckedBet:
-    """Look for ``bet``'s numbers on ``wheels`` over the ``lookback`` preceding draws.
+    scope: str = DEFAULT_SCOPE,
+) -> tuple[CheckedBet, ...]:
+    """Look for ``bet``'s numbers over the ``lookback`` draws before ``dates[index]``.
 
-    The most recent draw is checked first, so a rejected bet is reported where it was
-    most recently seen. A bet is clean only when none of its numbers turns up at all.
+    ``scope`` chooses which wheels are searched -- see :data:`SCOPES`. ``strict`` and
+    ``medium`` return one verdict for the whole bet; ``loose`` returns one per wheel of
+    the match, since a bet it burns on one wheel is still clean on the others.
+
+    The most recent draw is searched first, so a burnt bet is reported where it was most
+    recently seen. A bet is clean only when none of its numbers turns up at all.
     """
+    if scope not in SCOPES:
+        raise LottoError(f"unknown scope {scope!r}, expected one of {', '.join(SCOPES)}")
+    groups = [(wheel,) for wheel in wheels] if scope == "loose" else [wheels]
+    return tuple(
+        _check_one(draws, dates, index, bet, group, lookback, scope) for group in groups
+    )
+
+
+def _check_one(
+    draws: DrawSet,
+    dates: list[datetime.date],
+    index: int,
+    bet: Bet,
+    play: tuple[str, ...],
+    lookback: int,
+    scope: str,
+) -> CheckedBet:
     for day in reversed(dates[max(0, index - lookback):index]):
-        for wheel in wheels:
+        # Under strict the whole draw is searched, so a wheel that had nothing to do
+        # with the match can still burn the bet.
+        searched = tuple(draws[day]) if scope == "strict" else play
+        for wheel in searched:
             row = draws[day].get(wheel, ())
             for number in bet.numbers:
                 if number in row:
                     return CheckedBet(
                         bet=bet,
                         clean=False,
+                        play=play,
                         seen_number=number,
                         seen_wheel=wheel,
                         seen_date=day,
                         seen_position=list(row).index(number) + 1,
                     )
-    return CheckedBet(bet=bet, clean=True)
+    return CheckedBet(bet=bet, clean=True, play=play)
 
 
-def apply(draws: DrawSet, date: datetime.date, listing: Listing) -> ListingReport:
-    """Run every formula of ``listing`` against the draw of ``date``."""
+def apply(
+    draws: DrawSet,
+    date: datetime.date,
+    listing: Listing,
+    *,
+    clean_only: bool = False,
+    scope: str = DEFAULT_SCOPE,
+) -> ListingReport:
+    """Run every formula of ``listing`` against the draw of ``date``.
+
+    ``clean_only`` keeps just the matches the retrovisione left untouched -- every bet
+    still playable, none of their numbers already out on the matching wheels. It is a
+    filter on the report, not a different rule: a match it drops is still a match.
+    """
     dates = sorted(draws)
     try:
         index = dates.index(date)
@@ -414,7 +492,11 @@ def apply(draws: DrawSet, date: datetime.date, listing: Listing) -> ListingRepor
 
     day = draws[date]
     holders = wheels_by_number(day)
-    report = ListingReport(date=date, listing=listing, history=index)
+    if scope not in SCOPES:
+        raise LottoError(f"unknown scope {scope!r}, expected one of {', '.join(SCOPES)}")
+    report = ListingReport(
+        date=date, listing=listing, history=index, clean_only=clean_only, scope=scope
+    )
     if index < listing.lookback:
         return report
 
@@ -446,13 +528,23 @@ def apply(draws: DrawSet, date: datetime.date, listing: Listing) -> ListingRepor
                 found=found,
                 isotopic=_isotopic(day, found),
                 bets=tuple(
-                    check_rear(draws, dates, index, bet, wheels, listing.lookback)
+                    checked
                     for bet in formula.bets
+                    for checked in check_rear(
+                        draws, dates, index, bet, wheels, listing.lookback, scope
+                    )
                 ),
             )
         )
+    if clean_only:
+        matches = [match for match in matches if match.all_clean]
     return ListingReport(
-        date=date, listing=listing, history=index, matches=tuple(matches)
+        date=date,
+        listing=listing,
+        history=index,
+        matches=tuple(matches),
+        clean_only=clean_only,
+        scope=scope,
     )
 
 
@@ -532,12 +624,20 @@ def scan(
     *,
     since: datetime.date | None = None,
     until: datetime.date | None = None,
+    clean_only: bool = False,
+    scope: str = DEFAULT_SCOPE,
 ) -> list[ListingReport]:
-    """Every draw of the range that at least one formula matched, oldest first."""
+    """Every draw of the range that at least one formula matched, oldest first.
+
+    With ``clean_only``, a draw whose every match was burnt by the retrovisione counts
+    as no match at all and is left out.
+    """
     return [
         report
         for day in sorted(draws)
         if (since is None or day >= since) and (until is None or day <= until)
-        for report in (apply(draws, day, listing),)
+        for report in (
+            apply(draws, day, listing, clean_only=clean_only, scope=scope),
+        )
         if report.satisfied
     ]

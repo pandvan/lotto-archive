@@ -6,7 +6,8 @@ are there. It matches when every one of its *numeri di ricerca* came out on **ex
 one** wheel -- a number on two wheels makes the play *sporca* -- and those wheels number
 exactly as many as the listing asks for. Its bets are then checked against the preceding
 draws on the matching wheels: one whose numbers already came out there is reported as
-rejected, and what is left is the clean play.
+rejected, and what is left is the clean play. ``--scope`` widens or narrows the wheels
+that check searches.
 
 Formulas come either from a file -- ``.frm`` or its JSON form, see
 ``schema/formula.schema.json`` -- or typed out on the command line in the same syntax,
@@ -30,7 +31,9 @@ from _common import REPO_ROOT
 from lotto.archive import load
 from lotto.listing import (
     DEFAULT_LOOKBACK,
+    DEFAULT_SCOPE,
     DEFAULT_WHEELS,
+    SCOPES,
     Listing,
     ListingReport,
     Match,
@@ -84,6 +87,21 @@ def parse_args() -> argparse.Namespace:
         help=f"draws the retrovisione reaches back, with --search (default: {DEFAULT_LOOKBACK})",
     )
     parser.add_argument(
+        "--scope",
+        choices=SCOPES,
+        default=DEFAULT_SCOPE,
+        help="which wheels the retrovisione searches: strict every wheel, medium the "
+        f"wheels of the match, loose each of them on its own (default: {DEFAULT_SCOPE}, "
+        "what lotto-convergence does)",
+    )
+    parser.add_argument(
+        "--clean",
+        action="store_true",
+        help="keep only matches the retrovisione left untouched — every bet still "
+        "playable, none already out on the matching wheels. A formula that plays no "
+        "bets has nothing to burn and is kept",
+    )
+    parser.add_argument(
         "--date",
         type=datetime.date.fromisoformat,
         default=None,
@@ -133,6 +151,8 @@ def format_match(match: Match, ordinal: int) -> list[str]:
             continue
         played = " · ".join(
             _combo(checked.bet.numbers)
+            # Under loose each wheel gets its own verdict, so say which one this is.
+            + (f" on {checked.play[0]}" if len(checked.play) < len(match.wheels) else "")
             + (
                 ""
                 if checked.clean
@@ -173,9 +193,24 @@ def listing_from(args) -> Listing:
 def run(args, draws, contests) -> int:
     listing = listing_from(args)
     if args.scan:
-        reports = scan(draws, listing, since=args.since, until=args.until)
+        reports = scan(
+            draws,
+            listing,
+            since=args.since,
+            until=args.until,
+            clean_only=args.clean,
+            scope=args.scope,
+        )
     else:
-        reports = [apply(draws, args.date or max(draws), listing)]
+        reports = [
+            apply(
+                draws,
+                args.date or max(draws),
+                listing,
+                clean_only=args.clean,
+                scope=args.scope,
+            )
+        ]
 
     if args.json:
         payload = [report.as_dict() for report in reports]
@@ -186,6 +221,8 @@ def run(args, draws, contests) -> int:
         f"listing: {listing.name} — {listing.size} numbers over "
         f"{listing.wheel_count} wheels, retrovisione {listing.lookback} draws, "
         f"{len(listing.formulas)} formula{'s' if len(listing.formulas) != 1 else ''}"
+        + f", {args.scope} retrovisione"
+        + (", clean only" if args.clean else "")
     )
     print()
     for report in reports:
