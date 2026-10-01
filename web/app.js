@@ -61,16 +61,18 @@ const LABELS = {
       help: 'I nove gruppi di dieci, da 1-10 a 81-90.',
     },
   },
+  // Tab ids are what the address shows, so they are English like every other id; the
+  // label beside each is what the reader sees.
   tabs: [
-    ['tabellone', 'Tabellone'],
-    ['ritardi', 'Ritardi'],
-    ['frequenze', 'Frequenze'],
-    ['ambi', 'Ambi'],
-    ['gruppi', 'Cadenze e figure'],
-    ['distribuzioni', 'Distribuzioni'],
-    ['spie', 'Numeri spia'],
-    ['verifica', 'Verifica'],
-    ['formule', 'Formule'],
+    ['board', 'Tabellone'],
+    ['delays', 'Ritardi'],
+    ['frequencies', 'Frequenze'],
+    ['pairs', 'Ambi'],
+    ['groups', 'Cadenze e figure'],
+    ['distributions', 'Distribuzioni'],
+    ['followers', 'Numeri spia'],
+    ['check', 'Verifica'],
+    ['formulas', 'Formule'],
   ],
   // How far back a listing is run, in years before the last draw.
   formulaPeriods: [
@@ -82,7 +84,7 @@ const LABELS = {
 };
 
 const TABS = new Map(LABELS.tabs);
-const DEFAULT_TAB = 'tabellone';
+const DEFAULT_TAB = 'board';
 const NUMBERS = Array.from({ length: 90 }, (_, i) => i + 1);
 
 // ---------------------------------------------------------------- formatting
@@ -1058,7 +1060,7 @@ function renderFormule() {
   });
   const period = el('select', {
     id: 'formula-period',
-    onchange: () => { formula.period = period.value; run(); },
+    onchange: () => { formula.period = period.value; syncHash(); run(); },
   }, LABELS.formulaPeriods.map(([id, label]) => el('option', {
     value: id, selected: id === formula.period, text: label,
   })));
@@ -1090,15 +1092,15 @@ function renderFormule() {
 }
 
 const RENDERERS = {
-  tabellone: renderTabellone,
-  ritardi: renderRitardi,
-  frequenze: renderFrequenze,
-  ambi: renderAmbi,
-  gruppi: renderGruppi,
-  distribuzioni: renderDistribuzioni,
-  spie: renderSpie,
-  verifica: renderVerifica,
-  formule: renderFormule,
+  board: renderTabellone,
+  delays: renderRitardi,
+  frequencies: renderFrequenze,
+  pairs: renderAmbi,
+  groups: renderGruppi,
+  distributions: renderDistribuzioni,
+  followers: renderSpie,
+  check: renderVerifica,
+  formulas: renderFormule,
 };
 
 // -------------------------------------------------------------------- chrome
@@ -1139,7 +1141,7 @@ async function render() {
   renderTabs();
   // A listing is run over every wheel and its own period, so the two filters say nothing.
   for (const id of ['wheel', 'period']) {
-    document.getElementById(id).parentElement.hidden = state.tab === 'formule';
+    document.getElementById(id).parentElement.hidden = state.tab === 'formulas';
   }
   const data = await wheelData(state.wheel);
   const renderer = RENDERERS[state.tab] ?? RENDERERS[DEFAULT_TAB];
@@ -1147,17 +1149,34 @@ async function render() {
   hideTip();
 }
 
+/**
+ * The address is the tab, then what that tab depends on: `#/pairs/napoli/all`,
+ * `#/followers/napoli/all/12`. A listing is run over every wheel and its own period, so
+ * its tab carries only that: `#/formulas/5`.
+ *
+ * The address is English throughout, so the pseudo-wheel `tutte` is written `all` there
+ * and nowhere else: it stays `tutte` in the data and in the state.
+ */
 function syncHash() {
-  const parts = ['', state.wheel, state.period, state.tab];
-  if (state.tab === 'spie') parts.push(String(state.spy));
+  const parts = state.tab === 'formulas'
+    ? ['', state.tab, state.formula.period]
+    : ['', state.tab, state.wheel === 'tutte' ? 'all' : state.wheel, state.period];
+  if (state.tab === 'followers') parts.push(String(state.spy));
   history.replaceState(null, '', `#${parts.join('/')}`);
 }
 
 function readHash() {
-  const [, wheel, period, tab, spy] = (location.hash.slice(1) || '').split('/');
-  if (wheel && LABELS.wheels[wheel]) state.wheel = wheel;
-  if (period && LABELS.periods[period]) state.period = period;
-  if (tab && TABS.has(tab)) state.tab = tab;
+  const [, tab, ...rest] = (location.hash.slice(1) || '').split('/');
+  if (!TABS.has(tab)) return;
+  state.tab = tab;
+  if (tab === 'formulas') {
+    if (LABELS.formulaPeriods.some(([id]) => id === rest[0])) state.formula.period = rest[0];
+    return;
+  }
+  const [inAddress, period, spy] = rest;
+  const wheel = inAddress === 'all' ? 'tutte' : inAddress;
+  if (LABELS.wheels[wheel]) state.wheel = wheel;
+  if (LABELS.periods[period]) state.period = period;
   const parsed = Number(spy);
   if (parsed >= 1 && parsed <= 90) state.spy = parsed;
 }
