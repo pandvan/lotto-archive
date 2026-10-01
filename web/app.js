@@ -925,7 +925,8 @@ function showDraw(draw, lit, note) {
 
 /** A checked bet: its numbers, and when the retrovisione burnt it, where and when. */
 function betNode(bet, byDate) {
-  const numbers = el('span', { class: bet.clean ? 'bet' : 'bet dirty', text: bet.numbers.join('-') });
+  const numbers = el('span', { class: bet.clean ? 'bet' : 'bet dirty' },
+    bet.numbers.map((n) => el('span', { class: 'ball', text: String(n) })));
   if (bet.clean) return numbers;
   const { seen } = bet;
   return el('span', {}, numbers, el('button', {
@@ -995,7 +996,9 @@ function formulaResults(draws, listing, matches) {
     },
       el('summary', {},
         el('b', { text: `Formula ${formula.index}` }),
-        ` · ${formula.numbers.join('-')} · ${num(found.length)} ${found.length === 1 ? 'riscontro' : 'riscontri'}`),
+        el('span', { class: 'found' },
+          formula.numbers.map((n) => el('span', { class: 'ball', text: String(n) }))),
+        `${num(found.length)} ${found.length === 1 ? 'riscontro' : 'riscontri'}`),
       body);
   });
 
