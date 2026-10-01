@@ -4,6 +4,9 @@
  * and no prose, so this file is the only place to change wording, and the only place
  * where the Italian lotto vocabulary (ritardo, ambo, cadenza, figura, decina) appears.
  *
+ * The "Formule" tab is the one view not built from generated statistics: it runs a
+ * listing the reader uploads against the raw draws, with the rule in formula.js.
+ *
  * No dependencies. Charts are inline SVG built by the helpers under "charts".
  */
 'use strict';
@@ -67,6 +70,14 @@ const LABELS = {
     ['distribuzioni', 'Distribuzioni'],
     ['spie', 'Numeri spia'],
     ['verifica', 'Verifica'],
+    ['formule', 'Formule'],
+  ],
+  // How far back a listing is run, in years before the last draw.
+  formulaPeriods: [
+    ['1', 'Ultimo anno'],
+    ['5', 'Ultimi 5 anni'],
+    ['10', 'Ultimi 10 anni'],
+    ['all', "Tutto l'archivio"],
   ],
 };
 
@@ -492,6 +503,8 @@ const state = {
   tab: DEFAULT_TAB,
   spy: 1,
   cache: new Map(),
+  draws: null,
+  formula: { listing: null, period: '1', cleanOnly: false, isotopicOnly: false },
 };
 
 const wheelName = (id) => LABELS.wheels[id] ?? id;
@@ -879,6 +892,203 @@ function unavailable(clause) {
     `voce dell'archivio non è una cinquina e ${clause}. Scegli una ruota singola.`));
 }
 
+// -------------------------------------------------------------------- formulas
+
+/** Every draw of the archive, oldest first. Fetched once, and only for this tab. */
+async function allDraws() {
+  if (!state.draws) {
+    const response = await fetch('data/draws.json');
+    if (!response.ok) throw new Error(`draws.json: ${response.status}`);
+    state.draws = (await response.json()).draws;
+  }
+  return state.draws;
+}
+
+/** One draw as a matrix — a wheel per row, a position per column — with some cells lit. */
+function showDraw(draw, lit, note) {
+  const dialog = document.getElementById('draw');
+  dialog.replaceChildren(
+    el('h2', { text: `Estrazione del ${date(draw.date)} · concorso ${draw.contest}` }),
+    el('p', { class: 'help', text: note }),
+    el('table', { class: 'matrix' },
+      el('thead', {}, el('tr', {},
+        el('th', { scope: 'col', text: 'Ruota' }),
+        [1, 2, 3, 4, 5].map((p) => el('th', { scope: 'col', text: `${p}ª` })))),
+      el('tbody', {}, Object.entries(draw.wheels).map(([wheel, numbers]) => el('tr', {},
+        el('th', { scope: 'row', text: wheelName(wheel) }),
+        numbers.map((n) => el('td', { class: lit(wheel, n) ? 'hit' : null, text: String(n) })))))),
+    el('form', { method: 'dialog' }, el('button', { text: 'Chiudi' })));
+  dialog.showModal();
+}
+
+/** A checked bet: its numbers, and when the retrovisione burnt it, where and when. */
+function betNode(bet, byDate) {
+  const numbers = el('span', { class: bet.clean ? 'bet' : 'bet dirty', text: bet.numbers.join('-') });
+  if (bet.clean) return numbers;
+  const { seen } = bet;
+  return el('span', {}, numbers, el('button', {
+    type: 'button',
+    class: 'link dirty',
+    title: 'Mostra l\'estrazione che sporca la giocata',
+    text: `sporca: ${seen.number} su ${wheelName(seen.wheel)} il ${date(seen.date)}, ` +
+      `${seen.position}ª posizione`,
+    onclick: (event) => {
+      event.stopPropagation();
+      showDraw(byDate.get(seen.date),
+        (wheel, n) => bet.play.includes(wheel) && bet.numbers.includes(n),
+        `Numeri della giocata ${bet.numbers.join('-')} già usciti sulle ruote del riscontro.`);
+    },
+  }));
+}
+
+function findingRow(match, byDate) {
+  const kinds = BET_ORDER.filter((name) => match.bets[name].length);
+  return el('tr', {
+    onclick: () => showDraw(byDate.get(match.date),
+      (wheel, n) => match.found[wheel]?.includes(n) ?? false,
+      `Numeri di ricerca della formula ${match.formula.index}: ${match.formula.numbers.join('-')}.`),
+  },
+    // A real button, so the matrix is reachable from the keyboard; its click bubbles
+    // to the row.
+    el('td', {}, el('button', {
+      type: 'button', class: 'link', title: 'Mostra l\'estrazione', text: date(match.date),
+    })),
+    el('td', {}, match.wheels.map((wheel) => el('span', { class: 'found' },
+      wheelName(wheel), match.found[wheel].map((n) => el('span', { class: 'ball', text: String(n) }))))),
+    el('td', {}, match.isotopic
+      ? el('span', {
+        class: 'over',
+        title: 'Due numeri di ricerca nella stessa posizione su ruote diverse, anche se non sono lo stesso numero',
+        text: 'isotopi',
+      })
+      : '—'),
+    el('td', { class: 'bets' }, kinds.length
+      ? kinds.map((name) => el('div', {},
+        el('span', { class: 'kind', text: name }),
+        match.bets[name].map((bet) => betNode(bet, byDate))))
+      : 'nessuna giocata'));
+}
+
+function formulaResults(draws, listing, matches) {
+  const byDate = new Map(draws.map((draw) => [draw.date, draw]));
+  const byFormula = new Map();
+  for (const match of matches) {
+    if (!byFormula.has(match.formula)) byFormula.set(match.formula, []);
+    byFormula.get(match.formula).push(match);
+  }
+  const bets = matches.flatMap((match) => Object.values(match.bets).flat());
+
+  const sections = listing.formulas.filter((formula) => byFormula.has(formula)).map((formula) => {
+    const found = byFormula.get(formula);
+    const body = el('div', { class: 'scroll' });
+    return el('details', {
+      // A long scan finds thousands of matches: build a formula's rows when it is opened.
+      ontoggle: (event) => {
+        if (!event.target.open || body.firstChild) return;
+        body.append(el('table', { class: 'findings' },
+          el('thead', {}, el('tr', {}, ['Estrazione', 'Numeri trovati', 'Isotopia', 'Giocate']
+            .map((label) => el('th', { scope: 'col', text: label })))),
+          el('tbody', {}, [...found].reverse().map((match) => findingRow(match, byDate)))));
+      },
+    },
+      el('summary', {},
+        el('b', { text: `Formula ${formula.index}` }),
+        ` · ${formula.numbers.join('-')} · ${num(found.length)} ${found.length === 1 ? 'riscontro' : 'riscontri'}`),
+      body);
+  });
+
+  return card(listing.name, null,
+    el('p', {
+      class: 'help',
+      text: `${num(listing.size)} numeri di ricerca su ${num(listing.wheels)} ruote, ` +
+        `retrovisione di ${num(listing.lookback)} estrazioni. Apri una formula per vederne i ` +
+        'riscontri, dal più recente; clicca un riscontro per vedere l\'estrazione.',
+    }),
+    el('div', { class: 'tiles' },
+      tile('Formule', num(listing.formulas.length), `${num(byFormula.size)} con riscontri`),
+      tile('Riscontri', num(matches.length),
+        `${num(matches.filter((match) => match.isotopic).length)} con isotopia`),
+      tile('Giocate', num(bets.length), `${num(bets.filter((bet) => !bet.clean).length)} sporche`)),
+    sections.length
+      ? el('div', {}, sections)
+      : el('p', { class: 'unavailable', text: 'Nessun riscontro nel periodo.' }));
+}
+
+function renderFormule() {
+  const formula = state.formula;
+  const out = el('div');
+  const status = el('p', { class: 'help', role: 'status' });
+
+  async function run() {
+    if (!formula.listing) return;
+    try {
+      const draws = await allDraws();
+      const last = draws[draws.length - 1].date;
+      const since = formula.period === 'all'
+        ? null
+        : `${Number(last.slice(0, 4)) - Number(formula.period)}${last.slice(4)}`;
+      status.textContent = '';
+      // Filters on the report, not a different rule: a match they hide is still a match.
+      // "Clean" is what scripts/formula.py --clean keeps: no bet burnt by the retrovisione.
+      const matches = scanListing(draws, formula.listing, since).filter((match) =>
+        (!formula.isotopicOnly || match.isotopic) &&
+        (!formula.cleanOnly || Object.values(match.bets).flat().every((bet) => bet.clean)));
+      out.replaceChildren(formulaResults(draws, formula.listing, matches));
+    } catch (error) {
+      status.textContent = `Impossibile caricare le estrazioni (${error.message}).`;
+    }
+  }
+
+  const file = el('input', {
+    type: 'file',
+    id: 'listing',
+    accept: '.json,application/json',
+    onchange: async () => {
+      if (!file.files[0]) return;
+      try {
+        formula.listing = readListing(JSON.parse(await file.files[0].text()));
+      } catch (error) {
+        formula.listing = null;
+        out.replaceChildren();
+        status.textContent = `Listato non valido: ${error.message}`;
+        return;
+      }
+      run();
+    },
+  });
+  const period = el('select', {
+    id: 'formula-period',
+    onchange: () => { formula.period = period.value; run(); },
+  }, LABELS.formulaPeriods.map(([id, label]) => el('option', {
+    value: id, selected: id === formula.period, text: label,
+  })));
+
+  const toggle = (key, label) => el('label', { class: 'check' },
+    el('input', {
+      type: 'checkbox',
+      checked: formula[key],
+      onchange: (event) => { formula[key] = event.target.checked; run(); },
+    }),
+    label);
+
+  run();
+  return el('div', {},
+    card('Formule',
+      'Carica un listato in formato JSON (lo stesso che legge <code>scripts/formula.py</code>) ' +
+      'e scegli quante estrazioni considerare. Una formula ha un riscontro quando ognuno dei ' +
+      'suoi numeri di ricerca è uscito su una sola ruota; una giocata è <strong>sporca</strong> ' +
+      'quando uno dei suoi numeri è già uscito sulle ruote del riscontro nelle estrazioni della ' +
+      'retrovisione. Il file resta nel tuo browser. Una formula seleziona, non prevede: le ' +
+      'estrazioni sono indipendenti.',
+      el('div', { class: 'fields' },
+        el('div', { class: 'field' }, el('label', { for: 'listing', text: 'Listato' }), file),
+        el('div', { class: 'field' }, el('label', { for: 'formula-period', text: 'Estrazioni' }), period),
+        toggle('cleanOnly', 'Nascondi i riscontri con giocate sporche'),
+        toggle('isotopicOnly', 'Solo isotopi')),
+      status),
+    out);
+}
+
 const RENDERERS = {
   tabellone: renderTabellone,
   ritardi: renderRitardi,
@@ -888,6 +1098,7 @@ const RENDERERS = {
   distribuzioni: renderDistribuzioni,
   spie: renderSpie,
   verifica: renderVerifica,
+  formule: renderFormule,
 };
 
 // -------------------------------------------------------------------- chrome
@@ -926,6 +1137,10 @@ function renderHeader() {
 
 async function render() {
   renderTabs();
+  // A listing is run over every wheel and its own period, so the two filters say nothing.
+  for (const id of ['wheel', 'period']) {
+    document.getElementById(id).parentElement.hidden = state.tab === 'formule';
+  }
   const data = await wheelData(state.wheel);
   const renderer = RENDERERS[state.tab] ?? RENDERERS[DEFAULT_TAB];
   view.replaceChildren(renderer(data));

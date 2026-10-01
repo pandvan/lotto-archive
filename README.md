@@ -145,8 +145,20 @@ python -m http.server -d site 8000              # then open http://localhost:800
 | Path | What it is |
 |---|---|
 | `web/` | The page itself — hand-written HTML, CSS and JS, no dependencies |
+| `web/formula.js` | The formula rule ported to the browser, for the *Formule* tab |
 | `scripts/build_site.py` | Copies `web/`, then writes the computed JSON next to it |
-| `site/` | Build output: the page plus `data/meta.json` and `data/wheels/<wheel>.json` |
+| `site/` | Build output: the page plus `data/meta.json`, `data/wheels/<wheel>.json` and `data/draws.json` |
+
+The *Formule* tab takes a listing in the [JSON formula format](#the-json-formula-format),
+uploaded from disk and never sent anywhere, and runs it over the last year, the last 5
+or 10 years, or the whole archive, optionally keeping only the matches with no burnt
+bet (what `--clean` keeps) or only the *isotopi*. For every formula it lists the matches — which wheel
+held which search number, whether they are *isotopi*, every bet and, for a bet the
+*retrovisione* burnt, the number, wheel, date and position that burnt it. Clicking a
+match opens that draw as a matrix with the numbers highlighted. `web/formula.js` is a
+port of `scripts/lotto/listing.py` at the default `medium` scope, and
+`tests/test_formula_js.py` holds the two to the same output (it needs `node`, and skips
+without it).
 
 What it computes, per wheel and for the union of all wheels, over the whole archive and
 over the last 500 and last 100 draws:
