@@ -530,6 +530,7 @@ dialog form { margin-top: 14px; text-align: right; }
 
 .matrix td { text-align: center; }
 .matrix td.hit { background: var(--series-1); color: #fff; font-weight: 600; }
+.matrix td.hit.iso { background: #104281; }
 
 /* -------------------------------------------------------------------- misc */
 
