@@ -16,7 +16,7 @@ by a GitHub Action.
 | `data/all.min.json` | Every draw in one file, minified |
 | `data/latest.json` | The most recent draw only |
 | `index.json` | Coverage, per-year counts, and upstream source state |
-| `schema/` | JSON Schema for a draw and for a year file |
+| `schema/` | JSON Schema for a draw, a year file, and a formula listing |
 
 ## Format
 
@@ -145,8 +145,20 @@ python -m http.server -d site 8000              # then open http://localhost:800
 | Path | What it is |
 |---|---|
 | `web/` | The page itself — hand-written HTML, CSS and JS, no dependencies |
+| `web/formula.js` | The formula rule ported to the browser, for the *Formule* tab |
 | `scripts/build_site.py` | Copies `web/`, then writes the computed JSON next to it |
-| `site/` | Build output: the page plus `data/meta.json` and `data/wheels/<wheel>.json` |
+| `site/` | Build output: the page plus `data/meta.json`, `data/wheels/<wheel>.json` and `data/draws.json` |
+
+The *Formule* tab takes a listing in the [JSON formula format](#the-json-formula-format),
+uploaded from disk and never sent anywhere, and runs it over the last year, the last 5
+or 10 years, or the whole archive, optionally keeping only the matches with no burnt
+bet (what `--clean` keeps) or only the *isotopi*. For every formula it lists the matches — which wheel
+held which search number, whether they are *isotopi*, every bet and, for a bet the
+*retrovisione* burnt, the number, wheel, date and position that burnt it. Clicking a
+match opens that draw as a matrix with the numbers highlighted. `web/formula.js` is a
+port of `scripts/lotto/listing.py` at the default `medium` scope, and
+`tests/test_formula_js.py` holds the two to the same output (it needs `node`, and skips
+without it).
 
 What it computes, per wheel and for the union of all wheels, over the whole archive and
 over the last 500 and last 100 draws:
@@ -176,6 +188,141 @@ usually breaks both:
 The generated JSON uses English keys and carries no prose; every Italian label lives in
 `web/app.js`, which is also the only place the lotto vocabulary appears.
 
+## Formulas
+
+A lookup rule over the archive, not a statistic: `scripts/formula.py` runs the **formula
+listings** of [lotto-convergence](http://pawz.sartorello.org/lotto-conv.zip) against it.
+
+A formula says which numbers to look for in one draw, and which bets to play when they
+are there:
+
+```
+Name=Formula numeri ripetuti (2010)
+SearchNum=3        numbers to look for
+SearchDrm=2        wheels they must be spread over
+Rear=13            draws the retrovisione reaches back
+14  1 14 # 43 19 # 43 27 # 43 64
+^ numeri di ricerca  ^ the bets to play, one per '#'
+```
+
+```bash
+.venv/bin/python scripts/formula.py --listing formulas/nsla.json          # the latest draw
+.venv/bin/python scripts/formula.py --listing frm/allor.integrale.2019.frm --scan --since 2026-01-01
+.venv/bin/python scripts/formula.py -s "84 68 # 15 19 # 60" -z 3          # one formula, typed out
+```
+
+```
+2026-09-26  concorso 155 — 1 matched
+
+  1. formula 1  84-68  on palermo 68 · venezia 84
+     ambata    60
+     ambo      15-19 (out: 15 on palermo 2026-09-25, position 1)
+```
+
+How a formula is applied:
+
+1. **Found** — every *numero di ricerca* must have come out on **exactly one** wheel: a
+   number on two wheels makes the play *sporca* and drops the formula. Those wheels must
+   number exactly `SearchDrm`.
+2. **Isotopia** — reported when two of the matching wheels hold a search number in the
+   same extraction position. It is recorded, not required.
+3. **Retrovisione** — each bet is checked against the `Rear` preceding draws. A bet
+   whose numbers already came out there is rejected, with where and when; what is left
+   is the clean play.
+
+`--scope` chooses how many wheels that last check searches. The subject is always the
+bet's numbers over the same `Rear` draws:
+
+| `--scope` | Searches | |
+|---|---|---|
+| `strict` | every wheel that drew | a number out anywhere burns the bet |
+| `medium` | the wheels of the match | **default** — what `checkRearView` does |
+| `loose` | each of those wheels on its own | a bet burnt on one wheel stays playable on the other, and is reported once per wheel |
+
+```
+$ scripts/formula.py --listing frm/allor.integrale.2019.frm --date 2026-09-01 --scope loose
+
+  1. formula 35  35-53-80  on milano 53 · roma 35 80
+     ambo      78-8 on milano (out: 78 on milano 2026-08-25, position 4) · 78-8 on roma
+```
+
+The same bet under `--scope medium` is simply rejected, and under `strict` it is rejected
+by 8 coming out on palermo — a wheel with no part in the match at all. They nest: strict
+rejects at least as much as medium, medium at least as much as loose.
+
+A formula's bets are five lists — **ambate, ambi, terni, quaterne, cinquine** — and any
+of them may be empty. A formula with no bets at all is legal: it reports where its
+numbers landed, and the retrovisione has nothing to check.
+
+| Flag | |
+|---|---|
+| `--listing FILE` | a listing to run: `.frm`, or the JSON form below |
+| `-s/--search` | one formula written inline, `"14 1 62 # 43 19 # 27"` (commas work) |
+| `-w/--wheels Y` | stands in for `SearchDrm` with `--search` (default 2) |
+| `-z/--lookback Z` | stands in for `Rear` with `--search` (default 9) |
+| `--scope` | `strict` / `medium` / `loose` — wheels the retrovisione searches |
+| `--clean` | keep only matches the retrovisione left untouched |
+| `--date`, `--scan`, `--since`, `--until` | one draw, or every draw of a range |
+| `--json` | the report as JSON |
+
+`--clean` is the filter worth reaching for on a long scan: it keeps only the matches
+whose bets all survived the retrovisione, which is most of what makes a match
+interesting. Over 2026, `allor.integrale.2019` matched on 108 draws and exactly one of
+them came through clean. A formula that plays no bets has nothing to burn and is kept.
+
+A whole-archive `--scan` takes about two seconds. Before 2005 only a handful of wheels
+drew, so a formula behaves differently there; `--since 2005-05-04` is where all eleven
+are present.
+
+The same disclaimer as the statistics site applies, and more sharply: draws are
+independent, so rejecting a bet whose numbers came out recently does not make the
+remaining bets any likelier. The rule selects; it does not predict.
+
+### The JSON formula format
+
+`.frm` is positional: the header is four lines in a fixed order, and a bet's kind is
+implied by how many numbers it holds. `schema/formula.schema.json` defines a JSON form
+that says both out loud, and `scripts/formula.py --listing` reads either.
+
+```bash
+python scripts/convert_formulas.py ../lotto-convergence/frm   # a directory, or single files
+python scripts/formula.py --listing formulas/nsla.json
+```
+
+```json
+{
+  "name": "Formula Allorquando Integrale 1932",
+  "source": "allor.integrale.2019.frm",
+  "size": 3,
+  "wheels": 2,
+  "lookback": 9,
+  "formula_count": 180,
+  "formulas": [
+    {
+      "index": 1,
+      "numbers": [1, 19, 46],
+      "bets": {
+        "ambata": [],
+        "ambo": [[66, 64]],
+        "terno": [],
+        "quaterna": [],
+        "cinquina": [[64, 65, 67, 56, 76]]
+      }
+    }
+  ]
+}
+```
+
+A formula's bets are **five lists — ambate, ambi, terni, quaterne, cinquine — and any of
+them may be empty**; all five keys are always written. `size`, `wheels` and `lookback`
+are `SearchNum`, `SearchDrm` and `Rear` under names that say what they do, and `source`
+records the file a listing was converted from.
+
+Converted listings go to **`formulas/`, which is git-ignored**: they are someone else's
+formulas in another repository's format, not part of this archive. A directory sweep
+picks up `*.frm` and leaves the author's disabled `*.frm.no` files alone; naming one
+converts it anyway.
+
 ## Development
 
 ```bash
@@ -192,6 +339,8 @@ python -m venv .venv && .venv/bin/pip install -r requirements-dev.txt
 | `scripts/reconcile.py` | Cross-check against the fallback |
 | `scripts/validate.py` | Validate the committed archive |
 | `scripts/build_site.py` | Build the static statistics site into `site/` |
+| `scripts/formula.py` | Run the lookup formula, or a listing, over one draw or a range |
+| `scripts/convert_formulas.py` | Convert `.frm` listings into the JSON formula format |
 
 Useful flags: `--dry-run`, `--force-refetch`, `--now <iso>` (pretend it is another time,
 to exercise the staleness logic), `--allow-history-rewrite`.

@@ -1,0 +1,86 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/pandvan/lotto-archive/main/schema/formula.schema.json",
+  "title": "Lotto formula listing",
+  "description": "A listing of lookup formulas: numbers to search for in one draw, and the bets to play when they are found. The JSON form of the lotto-convergence .frm format, produced by scripts/convert_formulas.py and read by scripts/formula.py --listing.",
+  "type": "object",
+  "required": ["name", "size", "wheels", "lookback", "formulas"],
+  "additionalProperties": false,
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "The listing's own name, as its author wrote it."
+    },
+    "source": {
+      "type": "string",
+      "description": "File this listing was converted from, when it was converted."
+    },
+    "size": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "How many numbers each formula searches for (.frm SearchNum)."
+    },
+    "wheels": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 11,
+      "description": "How many wheels those numbers must be spread over, each holding exactly one of them (.frm SearchDrm)."
+    },
+    "lookback": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "How many draws back the retrovisione reaches: a bet whose numbers already came out on the matching wheels within it is rejected (.frm Rear)."
+    },
+    "formula_count": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "How many formulas the listing holds. Derived; present for convenience."
+    },
+    "formulas": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/formula" }
+    }
+  },
+  "$defs": {
+    "formula": {
+      "type": "object",
+      "required": ["numbers", "bets"],
+      "additionalProperties": false,
+      "properties": {
+        "index": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "1-based position of the formula within the listing."
+        },
+        "numbers": {
+          "$ref": "#/$defs/numbers",
+          "description": "The numeri di ricerca: what must come out for the formula to match."
+        },
+        "bets": {
+          "type": "object",
+          "additionalProperties": false,
+          "description": "The bets to play, one list per kind. Every kind is present and any of them may be empty.",
+          "properties": {
+            "ambata": { "$ref": "#/$defs/bets", "items": { "$ref": "#/$defs/numbers", "minItems": 1, "maxItems": 1 } },
+            "ambo": { "$ref": "#/$defs/bets", "items": { "$ref": "#/$defs/numbers", "minItems": 2, "maxItems": 2 } },
+            "terno": { "$ref": "#/$defs/bets", "items": { "$ref": "#/$defs/numbers", "minItems": 3, "maxItems": 3 } },
+            "quaterna": { "$ref": "#/$defs/bets", "items": { "$ref": "#/$defs/numbers", "minItems": 4, "maxItems": 4 } },
+            "cinquina": { "$ref": "#/$defs/bets", "items": { "$ref": "#/$defs/numbers", "minItems": 5, "maxItems": 5 } }
+          }
+        }
+      }
+    },
+    "bets": {
+      "type": "array",
+      "description": "Every bet of one kind. Empty when the formula plays none of that kind."
+    },
+    "numbers": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 5,
+      "uniqueItems": true,
+      "items": { "type": "integer", "minimum": 1, "maximum": 90 }
+    }
+  }
+}

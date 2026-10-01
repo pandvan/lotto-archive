@@ -4,7 +4,8 @@
 Reads ``data/<year>.json``, computes every statistic in :mod:`lotto.stats`, and
 writes a self-contained directory ready for GitHub Pages: the hand-written assets
 from ``web/`` copied verbatim, plus one JSON file of metadata and one per wheel
-under ``data/``.
+under ``data/``, and the raw draws for the page's formula tab, which runs an uploaded
+listing in the browser.
 
 The output is entirely derived and is not committed -- ``.github/workflows/pages.yml``
 rebuilds it whenever the archive changes.
@@ -18,7 +19,7 @@ from pathlib import Path
 
 from _common import REPO_ROOT, summary, utc_stamp
 
-from lotto.archive import load, render_json, render_json_min
+from lotto.archive import ALL_MIN_FILE, DATA_DIR, load, render_json, render_json_min
 from lotto.stats import build
 
 WEB_DIR = "web"
@@ -68,6 +69,7 @@ def main() -> int:
     (data_dir / "meta.json").write_text(render(meta), encoding="utf-8")
     for wheel, payload in per_wheel.items():
         (wheels_dir / f"{wheel}.json").write_text(render(payload), encoding="utf-8")
+    shutil.copyfile(root / DATA_DIR / ALL_MIN_FILE, data_dir / "draws.json")
 
     written = sorted(path for path in out.rglob("*") if path.is_file())
     total = sum(path.stat().st_size for path in written)
