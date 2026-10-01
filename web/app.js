@@ -906,7 +906,10 @@ async function allDraws() {
   return state.draws;
 }
 
-/** One draw as a matrix — a wheel per row, a position per column — with some cells lit. */
+/**
+ * One draw as a matrix — a wheel per row, a position per column — with some cells lit:
+ * `lit` gives a cell its class, or nothing.
+ */
 function showDraw(draw, lit, note) {
   const dialog = document.getElementById('draw');
   dialog.replaceChildren(
@@ -918,7 +921,7 @@ function showDraw(draw, lit, note) {
         [1, 2, 3, 4, 5].map((p) => el('th', { scope: 'col', text: `${p}ª` })))),
       el('tbody', {}, Object.entries(draw.wheels).map(([wheel, numbers]) => el('tr', {},
         el('th', { scope: 'row', text: wheelName(wheel) }),
-        numbers.map((n) => el('td', { class: lit(wheel, n) ? 'hit' : null, text: String(n) })))))),
+        numbers.map((n) => el('td', { class: lit(wheel, n), text: String(n) })))))),
     el('form', { method: 'dialog' }, el('button', { text: 'Chiudi' })));
   dialog.showModal();
 }
@@ -938,7 +941,7 @@ function betNode(bet, byDate) {
     onclick: (event) => {
       event.stopPropagation();
       showDraw(byDate.get(seen.date),
-        (wheel, n) => bet.play.includes(wheel) && bet.numbers.includes(n),
+        (wheel, n) => (bet.play.includes(wheel) && bet.numbers.includes(n) ? 'hit' : null),
         `Numeri della giocata ${bet.numbers.join('-')} già usciti sulle ruote del riscontro.`);
     },
   }));
@@ -946,10 +949,22 @@ function betNode(bet, byDate) {
 
 function findingRow(match, byDate) {
   const kinds = BET_ORDER.filter((name) => match.bets[name].length);
+  const draw = byDate.get(match.date);
+  // The position of every search number found, wheel by wheel: a number is isotopo when
+  // another wheel of the match holds a search number in the same position.
+  const positions = Object.fromEntries(match.wheels.map((wheel) =>
+    [wheel, match.found[wheel].map((n) => draw.wheels[wheel].indexOf(n))]));
+  const lit = (wheel, n) => {
+    if (!match.found[wheel]?.includes(n)) return null;
+    const at = draw.wheels[wheel].indexOf(n);
+    return match.wheels.some((other) => other !== wheel && positions[other].includes(at))
+      ? 'hit iso'
+      : 'hit';
+  };
   return el('tr', {
-    onclick: () => showDraw(byDate.get(match.date),
-      (wheel, n) => match.found[wheel]?.includes(n) ?? false,
-      `Numeri di ricerca della formula ${match.formula.index}: ${match.formula.numbers.join('-')}.`),
+    onclick: () => showDraw(draw, lit,
+      `Numeri di ricerca della formula ${match.formula.index}: ${match.formula.numbers.join('-')}.` +
+      (match.isotopic ? ' In blu scuro gli isotopi.' : '')),
   },
     // A real button, so the matrix is reachable from the keyboard; its click bubbles
     // to the row.
