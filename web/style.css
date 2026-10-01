@@ -480,6 +480,7 @@ input[type="file"] { font: inherit; color: var(--ink); max-width: 100%; }
 
 details { border-top: 1px solid var(--grid); }
 details > summary { padding: 9px 0; cursor: pointer; font-variant-numeric: tabular-nums; }
+details > summary .found { margin-left: 10px; }
 details > .scroll { margin-bottom: 12px; }
 
 .findings td, .findings th { text-align: left; vertical-align: top; }
@@ -487,9 +488,21 @@ details > .scroll { margin-bottom: 12px; }
 .findings .bets { white-space: normal; }
 .found { display: inline-flex; align-items: center; gap: 4px; margin-right: 12px; }
 .kind { display: inline-block; min-width: 68px; color: var(--ink-muted); font-size: 12px; }
-.bet { margin-right: 10px; font-weight: 600; }
+.bets > div { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 0; margin-bottom: 4px; }
+.bet { display: inline-flex; gap: 4px; margin-right: 12px; }
 .dirty { color: var(--critical); }
-.bet.dirty { margin-right: 6px; text-decoration: line-through; }
+.bet.dirty { margin-right: 6px; }
+
+/* A bet's numbers: white while it is clean, red and struck through once it is dirty.
+   The .findings prefix is there to outweigh the themed .ball colour above. */
+.findings .bet .ball { background: #fff; color: #0b0b0b; border: 1px solid var(--axis); }
+
+.findings .bet.dirty .ball {
+  background: var(--critical);
+  border-color: var(--critical);
+  color: #fff;
+  text-decoration: line-through;
+}
 
 button.link {
   padding: 0;
