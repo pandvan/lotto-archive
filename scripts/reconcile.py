@@ -54,6 +54,34 @@ def main() -> int:
     summary(f"archive:  {len(archive)} draws, {count_rows(archive)} rows, last {iso(max(archive))}")
     summary(f"fallback: {len(fallback)} draws, {count_rows(fallback)} rows, last {iso(max(fallback))}")
 
+    # Repair before judging: a missing draw also shifts every later contest number of
+    # its year, so the checks below must see the archive as the repair leaves it. A
+    # draw that was added is no longer a problem, and the run can then end clean.
+    missing = sorted(set(fallback) - set(archive))
+    changed: list[Path] = []
+    if missing and args.repair:
+        result = merge(archive, {day: fallback[day] for day in missing})
+        report = Report()
+        check_draws(result.draws, report)
+        if not report.ok:
+            for error in report.errors:
+                print(f"error: {error}", file=sys.stderr)
+            return 1
+        if args.dry_run:
+            summary(f"dry run: would repair {len(missing)} missing draw(s)")
+        else:
+            state = read_index(root).get("sources", {})
+            state.setdefault("primary", {"url": sources.PRIMARY_URL})
+            state["fallback"] = {
+                "url": sources.FALLBACK_URL,
+                "last_modified": last_modified,
+                "used": True,
+                "last_reconciled": utc_stamp(),
+            }
+            changed = write(root, result.draws, generated_at=utc_stamp(), sources=state)
+            summary(f"repaired {len(missing)} missing draw(s)")
+            archive, missing = result.draws, []
+
     problems: list[str] = []
 
     # Rows that exist in both but disagree: the archive is wrong, or upstream is.
@@ -66,7 +94,6 @@ def main() -> int:
     if mismatches:
         problems.append(f"{len(mismatches)} row mismatch(es)")
 
-    missing = sorted(set(fallback) - set(archive))
     if missing:
         problems.append(
             f"{len(missing)} draw(s) in the fallback but not the archive: "
@@ -91,27 +118,6 @@ def main() -> int:
 
     for line in mismatches[:10] + contest_bad[:10]:
         print(f"discrepancy: {line}", file=sys.stderr)
-
-    changed: list[Path] = []
-    if missing and args.repair:
-        result = merge(archive, {day: fallback[day] for day in missing})
-        report = Report()
-        check_draws(result.draws, report)
-        if not report.ok:
-            for error in report.errors:
-                print(f"error: {error}", file=sys.stderr)
-            return 1
-        state = read_index(root).get("sources", {})
-        state.setdefault("primary", {"url": sources.PRIMARY_URL})
-        state["fallback"] = {
-            "url": sources.FALLBACK_URL,
-            "last_modified": last_modified,
-            "used": True,
-            "last_reconciled": utc_stamp(),
-        }
-        if not args.dry_run:
-            changed = write(root, result.draws, generated_at=utc_stamp(), sources=state)
-        summary(f"repaired {len(missing)} missing draw(s)")
 
     set_output(changed=bool(changed), discrepancies=len(problems))
 

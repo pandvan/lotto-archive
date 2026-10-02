@@ -86,21 +86,32 @@ def main() -> int:
     merged_last = max(result.draws) if result.draws else None
     if merged_last is not None and expected is not None and merged_last < expected:
         summary(f"primary is behind ({iso(merged_last)} < {iso(expected)}); trying the fallback")
-        fb_fetched, raw = sources.fetch_fallback(session)
-        fallback, _contests = parse_dbf.parse(raw)
-        summary(f"fallback: {len(fallback)} dates, last {iso(max(fallback))}")
-        fallback_result = merge(result.draws, fallback)
-        fallback_result.added_dates = sorted(set(fallback_result.added_dates) | set(result.added_dates))
-        fallback_result.added_rows += result.added_rows
-        fallback_result.conflicts = result.conflicts + fallback_result.conflicts
-        result = fallback_result
-        used_fallback = True
-        fallback_state = {
-            "url": sources.FALLBACK_URL,
-            "last_modified": fb_fetched.last_modified,
-            "last_reconciled": fallback_state.get("last_reconciled"),
-        }
-        merged_last = max(result.draws)
+        # The fallback is a second chance, not a requirement: the primary is also
+        # "behind" the morning after a holiday with no draw, and what it did supply
+        # must still be published. A draw that stays missing fails the run below.
+        try:
+            fb_fetched, raw = sources.fetch_fallback(session)
+            fallback, _contests = parse_dbf.parse(raw)
+        except LottoError as exc:
+            summary(f"fallback unavailable, keeping the primary result: {exc}")
+        else:
+            summary(f"fallback: {len(fallback)} dates, last {iso(max(fallback))}")
+            # Only the draws the primary lacks. Comparing the history the two sources
+            # share is the weekly reconcile's job; doing it here would let one old
+            # disagreement block every new draw.
+            newer = {day: rows for day, rows in fallback.items() if day > merged_last}
+            fallback_result = merge(result.draws, newer)
+            fallback_result.added_dates = sorted(set(fallback_result.added_dates) | set(result.added_dates))
+            fallback_result.added_rows += result.added_rows
+            fallback_result.conflicts = result.conflicts + fallback_result.conflicts
+            result = fallback_result
+            used_fallback = True
+            fallback_state = {
+                "url": sources.FALLBACK_URL,
+                "last_modified": fb_fetched.last_modified,
+                "last_reconciled": fallback_state.get("last_reconciled"),
+            }
+            merged_last = max(result.draws)
 
     # --- refuse to rewrite history ----------------------------------------
     if result.conflicts:

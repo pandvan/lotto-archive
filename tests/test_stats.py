@@ -198,6 +198,20 @@ def test_uniformity_flags_a_rigged_series():
     assert got["p"] < 0.001
 
 
+def test_uniformity_corrects_for_drawing_without_replacement():
+    # Two draws: ten numbers seen once, eighty never. Pearson's statistic is 80, and
+    # five numbers drawn without replacement scale it by 89/85.
+    got = stats.uniformity(entries([1, 2, 3, 4, 5], [6, 7, 8, 9, 10]))["all"]
+    assert got["chi_square"] == round(80 * 89 / 85, 2)
+
+
+def test_uniformity_of_every_wheel_counts_a_number_once_per_wheel():
+    draws = {day(0): {"bari": [1, 2, 3, 4, 5], "roma": [1, 2, 3, 4, 5]}}
+    _, per_wheel = stats.build(draws, generated_at="2026-01-05T00:00:00Z")
+    # The tutte series is the union of the date, five numbers; the test must see ten.
+    assert per_wheel[ALL_WHEELS]["uniformity"]["all"]["drawn"] == 10
+
+
 # -------------------------------------------------------------------- coverage
 
 

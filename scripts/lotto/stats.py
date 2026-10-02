@@ -308,7 +308,14 @@ def uniformity(series: Sequence[Entry]) -> dict:
     for: it measures whether the observed frequencies depart from the expected ones by
     more than chance accounts for. Over the whole archive they do not, and that is
     precisely why none of the other tables can be used to predict.
+
+    Every entry must hold whole wheel rows -- five numbers drawn without replacement --
+    so for ``tutte`` pass :func:`pooled_series`, not the union of a date. Pearson's
+    statistic assumes independent single draws; five at a time without replacement
+    shrink it by ``(90 - 5) / (90 - 1)``, so it is scaled back up before being read
+    against 89 degrees of freedom. Unscaled it averages 85, and p reads too high.
     """
+    correction = (len(NUMBERS) - 1) / (len(NUMBERS) - NUMBERS_PER_DRAW)
     out: dict[str, dict] = {}
     for window_id, size in WINDOWS:
         sliced = window(series, size)
@@ -316,7 +323,7 @@ def uniformity(series: Sequence[Entry]) -> dict:
         observed = [counts.get(n, 0) for n in NUMBERS]
         drawn = sum(observed)
         expected = drawn / len(NUMBERS)
-        chi2 = chi_square(observed, expected)
+        chi2 = chi_square(observed, expected) * correction
         df = len(NUMBERS) - 1
         out[window_id] = {
             "drawn": drawn,
@@ -364,8 +371,22 @@ def coverage(draws: DrawSet) -> dict:
 # ------------------------------------------------------------------------ build
 
 
-def build_wheel(series: Sequence[Entry], wheel: str) -> dict:
-    """Every statistic for one wheel."""
+def pooled_series(draws: DrawSet) -> list[Entry]:
+    """One entry per date holding every wheel's row end to end, repeats included.
+
+    The ``tutte`` series is the *set* of numbers of a date, which is right for delays
+    and wrong for a frequency test: a number counts once however many wheels drew it.
+    """
+    return [
+        Entry(day, tuple(n for wheel in WHEELS for n in draws[day].get(wheel, ())))
+        for day in sorted(draws)
+    ]
+
+
+def build_wheel(
+    series: Sequence[Entry], wheel: str, *, pooled: Sequence[Entry] | None = None
+) -> dict:
+    """Every statistic for one wheel. ``pooled`` is what ``tutte`` tests for uniformity."""
     from . import tabellone
 
     five_numbers = wheel != ALL_WHEELS
@@ -374,7 +395,7 @@ def build_wheel(series: Sequence[Entry], wheel: str) -> dict:
         "five_numbers": five_numbers,
         "tabellone": tabellone.compute(list(series)),
         "groups": groups(series),
-        "uniformity": uniformity(series),
+        "uniformity": uniformity(pooled or series),
     }
     if five_numbers:
         payload["positions"] = positions(series)
@@ -395,7 +416,8 @@ def build(draws: DrawSet, *, generated_at: str) -> tuple[dict, dict[str, dict]]:
     for wheel in SERIES_KEYS:
         series = series_for(draws, wheel)
         if series:
-            per_wheel[wheel] = build_wheel(series, wheel)
+            pooled = pooled_series(draws) if wheel == ALL_WHEELS else None
+            per_wheel[wheel] = build_wheel(series, wheel, pooled=pooled)
 
     days = sorted(draws)
     meta = {
