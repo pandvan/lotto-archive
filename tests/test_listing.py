@@ -269,11 +269,40 @@ def test_read_takes_either_form(tmp_path):
             "name": "x", "size": 2, "wheels": 2, "lookback": 3,
             "formulas": [{"numbers": [1, 91], "bets": {}}],
         },
+        {  # more numbers than any bet holds
+            "name": "x", "size": 2, "wheels": 2, "lookback": 3,
+            "formulas": [{"numbers": [1, 2], "bets": {"cinquina": [[1, 2, 3, 4, 5, 6]]}}],
+        },
+        # the wrong shape, at every level
+        {"name": "x", "size": 2, "wheels": 2, "lookback": 3, "formulas": "1 2 # 3"},
+        {"name": "x", "size": 2, "wheels": 2, "lookback": 3, "formulas": ["1 2 # 3"]},
+        {"name": "x", "size": 2, "wheels": 2, "lookback": 3, "formulas": [{"numbers": 7}]},
+        {
+            "name": "x", "size": 2, "wheels": 2, "lookback": 3,
+            "formulas": [{"numbers": [1, 2], "bets": {"ambata": 3}}],
+        },
+        {
+            "name": "x", "size": 2, "wheels": 2, "lookback": 3,
+            "formulas": [{"numbers": [1, 2], "bets": {"ambata": [3]}}],
+        },
+        {
+            "name": "x", "size": 2, "wheels": 2, "lookback": 3,
+            "formulas": [{"numbers": [1, 2], "bets": [[3]]}],
+        },
+        {
+            "name": "x", "size": 2, "wheels": 2, "lookback": 3,
+            "formulas": [{"index": "first", "numbers": [1, 2], "bets": {}}],
+        },
     ],
 )
 def test_a_malformed_json_listing_is_refused(payload):
     with pytest.raises(LottoError):
         listing.from_json(payload)
+
+
+def test_a_file_that_is_not_json_is_refused(tmp_path):
+    with pytest.raises(LottoError, match="not valid JSON"):
+        listing.read(write(tmp_path, "{ nope", name="rotto.json"))
 
 
 # ---------------------------------------------------------------- the converter
