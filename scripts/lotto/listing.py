@@ -295,6 +295,8 @@ def group_by_type(items, bet_of):
 
 def _checked(numbers, where: str) -> tuple[int, ...]:
     """Validate a JSON array of numbers the way a ``.frm`` group is validated."""
+    if not isinstance(numbers, (list, tuple)):
+        raise LottoError(f"{where}: {numbers!r} is not a list of numbers")
     out: list[int] = []
     for value in numbers:
         if not isinstance(value, int) or isinstance(value, bool):
@@ -574,17 +576,30 @@ def from_json(payload: dict, *, where: str = "listing") -> Listing:
         if key not in payload:
             raise LottoError(f"{where}: missing {key!r}")
 
+    if not isinstance(payload["formulas"], list):
+        raise LottoError(f"{where}: 'formulas' is not a list")
+
     formulas: list[Formula] = []
     for offset, entry in enumerate(payload["formulas"], start=1):
         spot = f"{where}: formula {offset}"
+        if not isinstance(entry, dict):
+            raise LottoError(f"{spot}: not a JSON object")
         numbers = _checked(entry.get("numbers", ()), spot)
+        index = entry.get("index", offset)
+        if not isinstance(index, int) or isinstance(index, bool):
+            raise LottoError(f"{spot}: 'index' is not a whole number")
+        played_by_name = entry.get("bets") or {}
+        if not isinstance(played_by_name, dict):
+            raise LottoError(f"{spot}: 'bets' is not a JSON object")
         bets: list[Bet] = []
-        for name, played in (entry.get("bets") or {}).items():
+        for name, played in played_by_name.items():
             if name not in BET_ORDER:
                 raise LottoError(f"{spot}: {name!r} is not a bet")
+            if not isinstance(played, list):
+                raise LottoError(f"{spot}: {name!r} is not a list of bets")
             for group in played:
                 numbers_of = _checked(group, spot)
-                if BET_NAMES[len(numbers_of)] != name:
+                if BET_NAMES.get(len(numbers_of)) != name:
                     raise LottoError(
                         f"{spot}: {len(numbers_of)} numbers is not {'an' if name[0] in 'ae' else 'a'} {name}"
                     )
@@ -593,7 +608,7 @@ def from_json(payload: dict, *, where: str = "listing") -> Listing:
             Formula(
                 numbers=numbers,
                 bets=tuple(bets),
-                index=int(entry.get("index", offset)),
+                index=index,
             )
         )
     if not formulas:
@@ -614,7 +629,11 @@ def from_json(payload: dict, *, where: str = "listing") -> Listing:
 def read(path: Path) -> Listing:
     """Read a listing from either form: ``.json`` by its keys, anything else as .frm."""
     if path.suffix.lower() == ".json":
-        return from_json(json.loads(path.read_text(encoding="utf-8")), where=str(path))
+        try:
+            payload = json.loads(path.read_text(encoding="utf-8"))
+        except ValueError as error:
+            raise LottoError(f"{path}: not valid JSON ({error})") from None
+        return from_json(payload, where=str(path))
     return parse(path)
 
 

@@ -877,12 +877,13 @@ function renderVerifica(data) {
     card('Tutte le ruote, su tutto l\'archivio', null,
       table(wheelColumns, wheels, { sortKey: 'chi_square', desc: true })),
     card('Estrazioni per anno',
-      'Quanto è densa la copertura dell\'archivio. Una estrazione a settimana fino agli anni ' +
-      'Cinquanta, tre dal 1997, quattro dal 2025.',
+      'Quanto è densa la copertura dell\'archivio. Una estrazione a settimana fino al 1997, ' +
+      'due dal 1997, tre dal 2005, quattro dal 2023.',
       el('figure', {}, barChart({ data: years, height: 200, labelEvery: 5 }), legend(['bar', 'Estrazioni']))),
     card('Estrazioni per giorno della settimana',
       'Il calendario è cambiato molte volte: il sabato domina un secolo di storia, il ' +
-      'venerdì compare solo dal 2025. Per questo il calendario va letto dai dati e non assunto.',
+      'venerdì è giorno fisso solo dal 2023, e prima compare per qualche estrazione ' +
+      'straordinaria. Per questo il calendario va letto dai dati e non assunto.',
       el('figure', {}, barChart({ data: weekdays, height: 170 }), legend(['bar', 'Estrazioni']))),
     card('Da quando gioca ogni ruota', null,
       table(coverageColumns, coverage, { sortKey: 'draws', desc: true })));
@@ -1155,13 +1156,33 @@ function renderHeader() {
     `alle ${meta.generated_at.slice(11, 16)} UTC, sull'archivio aggiornato al ${date(meta.last_draw)}.`;
 }
 
+const loadError = (error) => el('div', { class: 'card' }, el('p', {
+  text: `Impossibile caricare i dati (${error.message}). Se stai aprendo il file dal disco, ` +
+    'servi la cartella con un server HTTP.',
+}));
+
+let renders = 0;
+
 async function render() {
+  renders += 1;
+  const mine = renders;
   renderTabs();
   // A listing is run over every wheel and its own period, so the two filters say nothing.
-  for (const id of ['wheel', 'period']) {
-    document.getElementById(id).parentElement.hidden = state.tab === 'formulas';
+  // Everywhere else they show the state, which the address can change behind them.
+  for (const [id, value] of [['wheel', state.wheel], ['period', state.period]]) {
+    const select = document.getElementById(id);
+    select.value = value;
+    select.parentElement.hidden = state.tab === 'formulas';
   }
-  const data = await wheelData(state.wheel);
+  let data = null;
+  try {
+    if (state.tab !== 'formulas') data = await wheelData(state.wheel);
+  } catch (error) {
+    if (mine === renders) view.replaceChildren(loadError(error));
+    return;
+  }
+  // A slower fetch for a wheel the reader has since left must not paint over the view.
+  if (mine !== renders) return;
   const renderer = RENDERERS[state.tab] ?? RENDERERS[DEFAULT_TAB];
   view.replaceChildren(renderer(data));
   hideTip();
@@ -1193,8 +1214,10 @@ function readHash() {
   }
   const [inAddress, period, spy] = rest;
   const wheel = inAddress === 'all' ? 'tutte' : inAddress;
-  if (LABELS.wheels[wheel]) state.wheel = wheel;
-  if (LABELS.periods[period]) state.period = period;
+  // Checked against what the site holds, not against LABELS: a plain object also
+  // answers to `constructor`, and a wheel with no file leaves the view blank.
+  if (state.meta.wheels.some((w) => w.id === wheel)) state.wheel = wheel;
+  if (state.meta.windows.some((w) => w.id === period)) state.period = period;
   const parsed = Number(spy);
   if (parsed >= 1 && parsed <= 90) state.spy = parsed;
 }
@@ -1253,10 +1276,7 @@ async function main() {
     if (!response.ok) throw new Error(`meta.json: ${response.status}`);
     state.meta = await response.json();
   } catch (error) {
-    view.replaceChildren(el('div', { class: 'card' }, el('p', {
-      text: `Impossibile caricare i dati (${error.message}). Se stai aprendo il file dal disco, ` +
-        'servi la cartella con un server HTTP.',
-    })));
+    view.replaceChildren(loadError(error));
     return;
   }
   if (!state.meta.wheels.some((w) => w.id === state.wheel)) state.wheel = state.meta.wheels[0].id;
