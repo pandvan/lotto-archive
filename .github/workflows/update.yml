@@ -47,11 +47,16 @@ jobs:
             ${{ inputs.force_refetch && '--force-refetch' || '' }} \
             ${{ inputs.allow_history_rewrite && '--allow-history-rewrite' || '' }}
 
+      # update.py exits non-zero after writing when the newest expected draw is still
+      # overdue. The draws it did write must be validated and committed all the same;
+      # the run still fails, and the failure is still reported.
       - name: Validate the archive
+        id: validate
+        if: ${{ !cancelled() }}
         run: python scripts/validate.py
 
       - name: Commit
-        if: steps.update.outputs.changed == 'true'
+        if: ${{ !cancelled() && steps.update.outputs.changed == 'true' && steps.validate.outcome == 'success' }}
         run: |
           git config user.name  'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'

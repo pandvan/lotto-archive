@@ -77,7 +77,10 @@ def fetch(
     if last_modified:
         headers["If-Modified-Since"] = last_modified
 
-    response = session.get(url, headers=headers, timeout=TIMEOUT)
+    try:
+        response = session.get(url, headers=headers, timeout=TIMEOUT)
+    except requests.RequestException as exc:
+        raise LottoError(f"{url}: {exc}") from None
     if response.status_code == 304:
         return Fetched(url, 304, None, etag, last_modified)
     if response.status_code != 200:

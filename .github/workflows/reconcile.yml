@@ -36,8 +36,10 @@ jobs:
         id: reconcile
         run: python scripts/reconcile.py ${{ inputs.repair && '--repair' || '' }}
 
+      # A repair is validated before it is written, so it is committed even when the
+      # run then fails on a discrepancy the repair could not settle.
       - name: Commit repairs
-        if: steps.reconcile.outputs.changed == 'true'
+        if: ${{ !cancelled() && steps.reconcile.outputs.changed == 'true' }}
         run: |
           git config user.name  'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
