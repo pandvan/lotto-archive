@@ -20,6 +20,10 @@ frequency without its reference value says nothing at all.
 
 Counting runs over the draws of the single wheel, not over the dates in the archive;
 see :mod:`lotto.series`.
+
+:func:`grid` is the same information laid out the way the printed tabellone is: every
+real wheel side by side, a number placed by its delay and by the position it last came
+out in.
 """
 
 from __future__ import annotations
@@ -77,6 +81,45 @@ def compute(series: list[Entry]) -> dict:
             for number in NUMBERS
         ],
     }
+
+
+def grid(draws: DrawSet) -> dict:
+    """Every real wheel's numbers by delay and position, for the tabellone as a grid.
+
+    ``position`` is the 1-based slot the number held the last time it came out, and
+    ``null`` with ``last_seen`` when it never did. ``tutte`` is left out: a date's union
+    of wheels has no positions.
+    """
+    from .model import WHEELS
+    from .series import series_for
+
+    if not draws:
+        raise ValueError("empty archive")
+    wheels = {}
+    for wheel in WHEELS:
+        series = series_for(draws, wheel)
+        if not series:
+            continue
+        history = gaps(series, number_keys, NUMBERS)
+        position: dict[int, int] = {}
+        for entry in series:
+            for slot, number in enumerate(entry.numbers, start=1):
+                position[number] = slot
+        wheels[wheel] = {
+            "draws": len(series),
+            "numbers": [
+                {
+                    "number": number,
+                    "delay": history[number].delay,
+                    "position": position.get(number),
+                    "last_seen": (
+                        iso(history[number].last_seen) if history[number].last_seen else None
+                    ),
+                }
+                for number in NUMBERS
+            ],
+        }
+    return {"last_draw": iso(max(draws)), "wheels": wheels}
 
 
 def compute_all(draws: DrawSet) -> dict:

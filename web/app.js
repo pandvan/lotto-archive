@@ -511,6 +511,7 @@ const state = {
   spy: 1,
   cache: new Map(),
   draws: null,
+  grid: null,
   formula: { listing: null, period: '1', cleanOnly: false, isotopicOnly: false },
 };
 
@@ -529,6 +530,83 @@ async function wheelData(id) {
 }
 
 // ------------------------------------------------------------------- renderers
+
+// A row's colour steps up at these delays, so the long absences stand out at the top.
+const DELAY_TIERS = [10, 30, 50, 80, 120];
+const delayTier = (delay) => DELAY_TIERS.filter((from) => delay >= from).length;
+
+/** Every wheel's numbers by delay and position. Fetched once, and only for this tab. */
+async function boardGrid() {
+  if (!state.grid) {
+    const response = await fetch('data/board.json');
+    if (!response.ok) throw new Error(`board.json: ${response.status}`);
+    state.grid = await response.json();
+  }
+  return state.grid;
+}
+
+/**
+ * The tabellone as it is printed: a row per delay, the longest at the top and the last
+ * draw at the bottom; five columns per wheel, one per position. A number sits once per
+ * wheel, on the row of its delay, in the position it last came out in.
+ */
+function gridTable(grid) {
+  const POSITIONS = [0, 1, 2, 3, 4];
+  // Per wheel, the numbers indexed by delay and then by position.
+  const wheels = Object.entries(grid.wheels).map(([id, wheel]) => {
+    const rows = [];
+    for (const entry of wheel.numbers) {
+      if (entry.position) (rows[entry.delay] ??= [])[entry.position - 1] = entry;
+    }
+    return { id, rows, max: rows.length - 1 };
+  });
+  const top = Math.max(...wheels.map((wheel) => wheel.max));
+  const delays = Array.from({ length: top + 1 }, (_, i) => top - i);
+
+  return el('table', { class: 'grid' },
+    el('thead', {},
+      el('tr', {},
+        el('th', { scope: 'col', rowspan: 2, class: 'rail', text: 'Rit.' }),
+        wheels.map((wheel) => el('th', {
+          scope: 'colgroup', colspan: 5, class: wheel.id === state.wheel ? 'edge on' : 'edge',
+        }, wheelName(wheel.id), el('small', { text: `rit. max ${num(wheel.max)}` })))),
+      el('tr', {}, wheels.flatMap(() => POSITIONS.map((p) => el('th', {
+        scope: 'col', class: p ? null : 'edge', text: `${p + 1}ª`,
+      }))))),
+    el('tbody', {}, delays.map((delay) => el('tr', { class: `t${delayTier(delay)}` },
+      el('th', { scope: 'row', text: String(delay) }),
+      wheels.flatMap((wheel) => POSITIONS.map((p) => {
+        const entry = wheel.rows[delay]?.[p];
+        return el('td', {
+          class: [p ? '' : 'edge', delay > wheel.max ? 'out' : '', entry ? 'full' : '']
+            .filter(Boolean).join(' ') || null,
+          title: entry && `${entry.number} su ${wheelName(wheel.id)}: ritardo ${num(delay)}, ` +
+            `${p + 1}ª posizione, ultima uscita ${date(entry.last_seen)}`,
+          text: entry ? String(entry.number) : '',
+        });
+      }))))));
+}
+
+function renderGrid() {
+  const box = el('div', { class: 'grid-box' }, el('p', { class: 'help', text: 'Caricamento…' }));
+  boardGrid()
+    .then((grid) => box.replaceChildren(gridTable(grid)))
+    .catch((error) => box.replaceChildren(el('p', {
+      class: 'help', text: `Impossibile caricare il tabellone (${error.message}).`,
+    })));
+  return card('Tabellone analitico',
+    `Le righe sono i <strong>ritardi</strong>: in basso la riga 0, l'ultima estrazione per
+     intero; salendo si va indietro nel tempo. Le colonne sono i cinque estratti di ogni
+     ruota. Ogni numero compare <strong>una sola volta per ruota</strong>, alla riga del suo
+     ritardo e nella posizione in cui è uscito: se è già comparso più in basso la cella resta
+     vuota. Le celle isolate in cima sono i ritardatari. Il ritardo conta le estrazioni di
+     quella ruota.`,
+    box,
+    el('div', { class: 'legend' },
+      el('span', { text: 'Ritardo' }),
+      DELAY_TIERS.map((from, i) => el('span', {},
+        el('span', { class: `swatch t${i + 1}` }), `da ${from}`))));
+}
 
 function renderTabellone(data) {
   const board = data.tabellone;
@@ -553,13 +631,13 @@ function renderTabellone(data) {
     { key: 'last_seen', label: 'Ultima uscita', class: 'dim', cell: (r) => date(r.last_seen) },
   ];
 
-  return card('Tabellone analitico',
+  return el('div', {}, renderGrid(), card(`I 90 numeri · ${wheelName(state.wheel)}`,
     `Una riga per ognuno dei 90 numeri. <strong>Ritardo</strong>, <strong>ritardo max</strong> e
      <strong>ultima uscita</strong> sono sempre calcolati su tutta la storia della ruota
      (${num(board.draws)} estrazioni); la <strong>frequenza</strong> segue il periodo scelto.
      Lo scarto è la differenza dalla frequenza attesa, ${dec2(expected)} uscite per numero.
      Clicca un'intestazione per ordinare.`,
-    table(columns, rows, { sortKey: 'delay', desc: true }));
+    table(columns, rows, { sortKey: 'delay', desc: true })));
 }
 
 function renderRitardi(data) {
@@ -1232,11 +1310,9 @@ async function render() {
   document.getElementById('notice').hidden = formulas;
   // A listing is run over every wheel and its own period, so the two filters say nothing.
   // Everywhere else they show the state, which the address can change behind them.
-  for (const [id, value] of [['wheel', state.wheel], ['period', state.period]]) {
-    const select = document.getElementById(id);
-    select.value = value;
-    select.parentElement.hidden = formulas;
-  }
+  document.getElementById('filters').hidden = formulas;
+  document.getElementById('wheel').value = state.wheel;
+  document.getElementById('period').value = state.period;
   let data = null;
   try {
     if (state.tab !== 'formulas') data = await wheelData(state.wheel);
@@ -1309,7 +1385,9 @@ function setUpFilters() {
 
 function setUpTheme() {
   const button = document.getElementById('theme');
-  const names = { auto: 'Auto', light: 'Chiaro', dark: 'Scuro' };
+  const names = { auto: 'automatico', light: 'chiaro', dark: 'scuro' };
+  // U+FE0E keeps the sun a plain glyph in the text colour, not a colour emoji.
+  const icons = { auto: '\u25D0', light: '\u2600\uFE0E', dark: '\u263E' };
   const order = ['auto', 'light', 'dark'];
   let current = 'auto';
   try {
@@ -1320,7 +1398,10 @@ function setUpTheme() {
   const apply = () => {
     if (current === 'auto') document.documentElement.removeAttribute('data-theme');
     else document.documentElement.setAttribute('data-theme', current);
-    button.textContent = names[current];
+    button.textContent = icons[current];
+    // The icon shows the theme in use; the label says it and what a click does.
+    button.title = `Tema ${names[current]}: clicca per cambiare`;
+    button.setAttribute('aria-label', button.title);
   };
   button.addEventListener('click', () => {
     current = order[(order.indexOf(current) + 1) % order.length];

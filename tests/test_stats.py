@@ -47,6 +47,23 @@ def test_tabellone_delay_counts_draws_of_the_wheel(archive):
     assert rows[20]["last_seen"] == "2026-01-01"
 
 
+def test_grid_places_each_number_by_delay_and_position(archive):
+    board = tabellone.grid(archive)
+    assert "tutte" not in board["wheels"]
+    for wheel, payload in board["wheels"].items():
+        series = series_for(archive, wheel)
+        table = {row["number"]: row for row in tabellone.compute(series)["numbers"]}
+        assert [row["number"] for row in payload["numbers"]] == list(range(1, 91))
+        for row in payload["numbers"]:
+            assert row["delay"] == table[row["number"]]["delay"]
+            if row["position"] is None:
+                assert row["last_seen"] is None
+                continue
+            # The draw `delay` back from the last one holds the number in that slot.
+            entry = series[len(series) - 1 - row["delay"]]
+            assert entry.numbers[row["position"] - 1] == row["number"]
+
+
 def test_tabellone_expected_is_the_flat_share(archive):
     board = tabellone.compute(series_for(archive, "bari"))
     # Four draws of five numbers, spread over 90 numbers.
