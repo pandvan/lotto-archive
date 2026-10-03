@@ -100,6 +100,15 @@ a { color: var(--series-1); }
 
 /* ------------------------------------------------------------------ header */
 
+.top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+#theme { flex: none; width: 36px; height: 36px; padding: 0; font-size: 18px; line-height: 1; }
+
 header h1 {
   margin: 0 0 4px;
   font-size: 22px;
@@ -256,8 +265,6 @@ button:focus-visible,
 
 [hidden] { display: none !important; }
 
-.spacer { flex: 1 1 auto; }
-
 /* --------------------------------------------------------------------- tabs */
 
 .tabs {
@@ -386,6 +393,63 @@ td.num { font-weight: 600; }
 td.dim { color: var(--ink-muted); }
 .over { color: var(--series-1); }
 .under { color: var(--series-2); }
+
+/* --------------------------------------------------------------- tabellone */
+
+/* The grid scrolls inside its own box, both ways, under a header that stays put. */
+.grid-box {
+  overflow: auto;
+  max-height: 80vh;
+  border: 1px solid var(--axis);
+  border-radius: 6px;
+}
+
+.grid-box .help { margin: 12px; }
+
+/* Separate borders: with collapsed ones a sticky cell leaves its border behind. */
+.grid { width: auto; border-collapse: separate; border-spacing: 0; }
+
+.grid th, .grid td {
+  padding: 0;
+  text-align: center;
+  border-bottom: 1px solid var(--grid);
+  border-right: 1px solid var(--grid);
+}
+
+.grid .edge { border-left: 1px solid var(--axis); }
+
+.grid thead th { z-index: 3; color: var(--ink); }
+.grid thead tr:first-child th { height: 36px; padding: 0 4px; font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; }
+.grid thead tr:last-child th { top: 36px; height: 20px; color: var(--ink-muted); font-size: 10px; font-weight: 400; }
+.grid thead small { display: block; color: var(--ink-muted); font-size: 9px; font-weight: 400; letter-spacing: 0; text-transform: none; }
+.grid thead th.on { color: var(--series-1); }
+.grid thead th.rail { left: 0; z-index: 5; }
+
+/* The delay, always in view. */
+.grid tbody th {
+  position: sticky;
+  left: 0;
+  z-index: 2;
+  min-width: 44px;
+  padding: 0 8px 0 5px;
+  text-align: right;
+  font-size: 11px;
+  border-right: 1px solid var(--axis);
+  background: var(--tier, var(--surface));
+}
+
+.grid td { min-width: 27px; height: 22px; font-size: 12px; font-weight: 600; }
+.grid td.full { background: var(--tier-cell, transparent); }
+/* Past a wheel's longest delay there is nothing left to place. */
+.grid td.out { background: var(--plane); opacity: 0.5; }
+
+/* One step per tier, mixed into the surface so it holds in both themes. */
+.grid .t1, .swatch.t1 { --tier: color-mix(in srgb, var(--warning) 22%, var(--surface)); --tier-cell: color-mix(in srgb, var(--warning) 10%, var(--surface)); }
+.grid .t2, .swatch.t2 { --tier: color-mix(in srgb, var(--warning) 45%, var(--surface)); --tier-cell: color-mix(in srgb, var(--warning) 22%, var(--surface)); }
+.grid .t3, .swatch.t3 { --tier: color-mix(in srgb, var(--warning) 70%, var(--surface)); --tier-cell: color-mix(in srgb, var(--warning) 36%, var(--surface)); }
+.grid .t4, .swatch.t4 { --tier: color-mix(in srgb, var(--series-2) 60%, var(--surface)); --tier-cell: color-mix(in srgb, var(--series-2) 32%, var(--surface)); }
+.grid .t5, .swatch.t5 { --tier: color-mix(in srgb, var(--critical) 65%, var(--surface)); --tier-cell: color-mix(in srgb, var(--critical) 36%, var(--surface)); }
+.swatch[class*=" t"] { background: var(--tier); }
 
 /* ------------------------------------------------------------------- charts */
 

@@ -12,7 +12,10 @@
 <div class="wrap">
 
   <header>
-    <h1>Statistiche del Lotto</h1>
+    <div class="top">
+      <h1>Statistiche del Lotto</h1>
+      <button id="theme" type="button" title="Cambia tema" aria-label="Cambia tema">&#x25D0;</button>
+    </div>
     <p class="sub" id="sub">Caricamento…</p>
 
     <section class="latest" id="latest" hidden>
@@ -33,7 +36,7 @@
       osservati superano quelli che il caso produce comunque. Non li superano.</p>
   </aside>
 
-  <div class="filters">
+  <div class="filters" id="filters">
     <div class="field">
       <label for="wheel">Ruota</label>
       <select id="wheel"></select>
@@ -41,11 +44,6 @@
     <div class="field">
       <label for="period">Periodo</label>
       <select id="period"></select>
-    </div>
-    <div class="spacer"></div>
-    <div class="field">
-      <label for="theme">Tema</label>
-      <button id="theme" type="button" title="Cambia tema">Auto</button>
     </div>
   </div>
 
