@@ -43,7 +43,7 @@ jobs:
         run: |
           git config user.name  'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add data index.json
+          git add data index.json README.md
           git diff --cached --quiet && exit 0
           git commit -m 'data: reconcile with fallback source'
           git push
