@@ -4,8 +4,9 @@
  * and no prose, so this file is the only place to change wording, and the only place
  * where the Italian lotto vocabulary (ritardo, ambo, cadenza, figura, decina) appears.
  *
- * The "Formule" tab is the one view not built from generated statistics: it runs a
- * listing the reader uploads against the raw draws, with the rule in formula.js.
+ * The page has two sections. "Statistiche" is read-only: tabs of generated statistics.
+ * "Formule" is the one view not built from them: it runs a listing the reader uploads
+ * against the raw draws, with the rule in formula.js.
  *
  * No dependencies. Charts are inline SVG built by the helpers under "charts".
  */
@@ -61,6 +62,12 @@ const LABELS = {
       help: 'I nove gruppi di dieci, da 1-10 a 81-90.',
     },
   },
+  // The two halves of the page: statistics to read, and listings to run. `formulas` is
+  // also the id the address and state.tab use for the second one.
+  sections: [
+    ['stats', 'Statistiche', 'Tabelle e grafici da consultare, ruota per ruota'],
+    ['formulas', 'Formule', "Carica un listato e cercane i riscontri nell'archivio"],
+  ],
   // Tab ids are what the address shows, so they are English like every other id; the
   // label beside each is what the reader sees.
   tabs: [
@@ -72,7 +79,6 @@ const LABELS = {
     ['distributions', 'Distribuzioni'],
     ['followers', 'Numeri spia'],
     ['check', 'Verifica'],
-    ['formulas', 'Formule'],
   ],
   // How far back a listing is run, in years before the last draw.
   formulaPeriods: [
@@ -83,7 +89,6 @@ const LABELS = {
   ],
 };
 
-const TABS = new Map(LABELS.tabs);
 const DEFAULT_TAB = 'board';
 const NUMBERS = Array.from({ length: 90 }, (_, i) => i + 1);
 
@@ -927,6 +932,32 @@ function showDraw(draw, lit, note) {
   dialog.showModal();
 }
 
+/** One formula in full: its search numbers, every bet it plays, and how it fared. */
+function showFormula(formula, listing, found) {
+  const kinds = BET_ORDER.filter((name) => formula.bets[name].length);
+  const balls = (numbers) => numbers.map((n) => el('span', { class: 'ball', text: String(n) }));
+  const dialog = document.getElementById('draw');
+  dialog.replaceChildren(
+    el('h2', { text: `Formula ${formula.index} · ${listing.name}` }),
+    el('p', {
+      class: 'help',
+      text: `${num(found.length)} ${found.length === 1 ? 'riscontro' : 'riscontri'} nel periodo, ` +
+        `${num(found.filter((match) => match.isotopic).length)} con isotopia; ` +
+        `l'ultimo il ${date(found[found.length - 1].date)}.`,
+    }),
+    el('div', { class: 'bets' },
+      el('div', {},
+        el('span', { class: 'kind', text: 'ricerca' }),
+        el('span', { class: 'bet' }, balls(formula.numbers))),
+      kinds.map((name) => el('div', {},
+        el('span', { class: 'kind', text: name }),
+        formula.bets[name].map((numbers) => el('span', { class: 'bet' }, balls(numbers)))))),
+    // replaceChildren would print a null, so the note is spread in only when it exists.
+    ...(kinds.length ? [] : [el('p', { class: 'help', text: 'La formula non ha giocate.' })]),
+    el('form', { method: 'dialog' }, el('button', { text: 'Chiudi' })));
+  dialog.showModal();
+}
+
 /** A checked bet: its numbers, and when the retrovisione burnt it, where and when. */
 function betNode(bet, byDate) {
   const numbers = el('span', { class: bet.clean ? 'bet' : 'bet dirty' },
@@ -976,15 +1007,20 @@ function findingRow(match, byDate) {
       wheelName(wheel), match.found[wheel].map((n) => el('span', { class: 'ball', text: String(n) }))))),
     el('td', {}, match.isotopic
       ? el('span', {
-        class: 'over',
-        title: 'Due numeri di ricerca nella stessa posizione su ruote diverse, anche se non sono lo stesso numero',
-        text: 'isotopi',
+        // The check mark comes from .verdict.ok; the label keeps it readable aloud.
+        class: 'verdict ok',
+        role: 'img',
+        'aria-label': 'isotopi',
+        title: 'Isotopi: due numeri di ricerca nella stessa posizione su ruote diverse, anche se non sono lo stesso numero',
       })
-      : '—'),
+      : el('span', {
+        class: 'verdict no', role: 'img', 'aria-label': 'non isotopi', title: 'Nessuna isotopia',
+      })),
     el('td', { class: 'bets' }, kinds.length
       ? kinds.map((name) => el('div', {},
         el('span', { class: 'kind', text: name }),
-        match.bets[name].map((bet) => betNode(bet, byDate))))
+        // One bet per line: a dirty bet's note then sits beside its own numbers only.
+        el('div', { class: 'stack' }, match.bets[name].map((bet) => betNode(bet, byDate)))))
       : 'nessuna giocata'));
 }
 
@@ -1014,7 +1050,15 @@ function formulaResults(draws, listing, matches) {
         el('b', { text: `Formula ${formula.index}` }),
         el('span', { class: 'found' },
           formula.numbers.map((n) => el('span', { class: 'ball', text: String(n) }))),
-        `${num(found.length)} ${found.length === 1 ? 'riscontro' : 'riscontri'}`),
+        `${num(found.length)} ${found.length === 1 ? 'riscontro' : 'riscontri'}`,
+        el('button', {
+          type: 'button',
+          class: 'link',
+          title: 'Mostra i numeri di ricerca e le giocate della formula',
+          text: 'dettagli',
+          // Inside a <summary>: keep the click from opening the formula's matches.
+          onclick: (event) => { event.preventDefault(); showFormula(formula, listing, found); },
+        })),
       body);
   });
 
@@ -1126,6 +1170,19 @@ const RENDERERS = {
 
 const view = document.getElementById('view');
 
+// The statistics tab to come back to from the formulas section.
+let statsTab = DEFAULT_TAB;
+
+function renderSections() {
+  const current = state.tab === 'formulas' ? 'formulas' : 'stats';
+  document.getElementById('sections').replaceChildren(
+    ...LABELS.sections.map(([id, label, about]) => el('button', {
+      type: 'button',
+      'aria-current': id === current ? 'page' : null,
+      onclick: () => { state.tab = id === 'formulas' ? id : statsTab; syncHash(); render(); },
+    }, el('b', { text: label }), el('span', { text: about }))));
+}
+
 function renderTabs() {
   const tabs = document.getElementById('tabs');
   tabs.replaceChildren(...LABELS.tabs.map(([id, label]) => el('button', {
@@ -1166,13 +1223,19 @@ let renders = 0;
 async function render() {
   renders += 1;
   const mine = renders;
+  const formulas = state.tab === 'formulas';
+  if (!formulas) statsTab = state.tab;
+  renderSections();
   renderTabs();
+  // The formulas section has none of the statistics' chrome: no tabs, no reading note.
+  document.getElementById('tabs').hidden = formulas;
+  document.getElementById('notice').hidden = formulas;
   // A listing is run over every wheel and its own period, so the two filters say nothing.
   // Everywhere else they show the state, which the address can change behind them.
   for (const [id, value] of [['wheel', state.wheel], ['period', state.period]]) {
     const select = document.getElementById(id);
     select.value = value;
-    select.parentElement.hidden = state.tab === 'formulas';
+    select.parentElement.hidden = formulas;
   }
   let data = null;
   try {
@@ -1206,7 +1269,7 @@ function syncHash() {
 
 function readHash() {
   const [, tab, ...rest] = (location.hash.slice(1) || '').split('/');
-  if (!TABS.has(tab)) return;
+  if (!Object.hasOwn(RENDERERS, tab)) return;
   state.tab = tab;
   if (tab === 'formulas') {
     if (LABELS.formulaPeriods.some(([id]) => id === rest[0])) state.formula.period = rest[0];
