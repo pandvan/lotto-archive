@@ -23,10 +23,16 @@ INDEX_FILE = "index.json"
 ALL_FILE = "all.json"
 ALL_MIN_FILE = "all.min.json"
 LATEST_FILE = "latest.json"
+README_FILE = "README.md"
 
 YEAR_FILE_RE = re.compile(r"^(\d{4})\.json$")
 #: Collapses arrays that hold only integers onto a single line. Arrays of objects
 #: contain '{' and so are never matched.
+#: The README's one-line summary of the archive, kept in step with the data.
+_README_SUMMARY_RE = re.compile(
+    r"^[\d,]+ draws · [\d,]+ wheel results · \d{4}-\d\d-\d\d → \d{4}-\d\d-\d\d$",
+    re.MULTILINE,
+)
 _INT_ARRAY_RE = re.compile(r"\[\s*((?:\d+,\s*)*\d+)\s*\]")
 
 
@@ -225,6 +231,17 @@ def write(
     if changed or not index_path.exists():
         index = build_index(draws, contests, generated_at=generated_at, sources=sources)
         changed += _write_if_changed(index_path, render_json(index))
+
+    # The README quotes the archive's size and span. It holds no timestamp, so it can be
+    # checked on every write and still changes only when the figures do.
+    readme = root / README_FILE
+    if readme.exists():
+        summary = (
+            f"{len(days):,} draws · {count_rows(draws):,} wheel results · "
+            f"{iso(days[0])} → {iso(days[-1])}"
+        )
+        text = readme.read_text(encoding="utf-8")
+        changed += _write_if_changed(readme, _README_SUMMARY_RE.sub(summary, text, count=1))
     return changed
 
 

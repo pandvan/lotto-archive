@@ -80,6 +80,17 @@ def test_the_index_is_refreshed_when_data_changes(tmp_path):
     assert index["draw_count"] == 2
 
 
+def test_the_readme_summary_follows_the_data(tmp_path):
+    readme = tmp_path / "README.md"
+    readme.write_text("# Archive\n\n```\n7,391 draws · 77,176 wheel results · 1939-01-07 → 2026-09-26\n```\n")
+    changed = write_sample(tmp_path, {D3: draw(1, 2, 3, 4, 5), D1: draw(6, 7, 8, 9, 10)})
+    assert readme in changed
+    assert "\n2 draws · 2 wheel results · 2025-12-30 → 2026-01-02\n" in readme.read_text()
+    # Nothing else in the file moves, and a second write leaves it alone.
+    assert readme.read_text().startswith("# Archive\n\n```\n")
+    assert write_sample(tmp_path, {D3: draw(1, 2, 3, 4, 5), D1: draw(6, 7, 8, 9, 10)}) == []
+
+
 def test_merge_adds_new_rows_without_touching_the_originals():
     base = {D1: draw(1, 2, 3, 4, 5)}
     result = archive.merge(base, {D2: draw(6, 7, 8, 9, 10)})
