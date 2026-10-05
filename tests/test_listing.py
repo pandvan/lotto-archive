@@ -179,6 +179,45 @@ def test_scan_reports_only_the_draws_a_formula_matched(tmp_path):
     assert [report.date for report in matched] == [day(3)]
 
 
+# ------------------------------------------------------------------ the outcome
+
+MATCH = {"bari": [71, 1, 2, 3, 4], "roma": [81, 5, 6, 7, 8]}
+
+
+def outcome(tmp_path, *after, **options):
+    draws = archive(QUIET, QUIET, MATCH, *after)
+    match, = listing.apply(draws, day(3), one_formula(tmp_path), **options).matches
+    return match.bets[0].outcome
+
+
+def test_a_bet_wins_when_all_its_numbers_come_out_on_one_wheel(tmp_path):
+    won = outcome(tmp_path, QUIET, {"bari": [30, 31, 1, 2, 3], "roma": [6, 7, 8, 9, 10]}, colpi=3)
+    assert (won.state, won.colpo, won.date, won.wheels) == ("won", 2, day(5), ("bari",))
+    # A win does not shorten the window: two draws of two wheels were there to search.
+    assert (won.colpi, won.rows) == (2, 4)
+
+
+def test_numbers_split_over_two_wheels_do_not_win(tmp_path):
+    split = {"bari": [30, 1, 2, 3, 4], "roma": [31, 6, 7, 8, 9]}
+    assert outcome(tmp_path, split, colpi=1).state == "lost"
+
+
+def test_a_bet_is_open_until_its_colpi_have_all_been_drawn(tmp_path):
+    assert outcome(tmp_path, QUIET, colpi=2).state == "open"
+    assert outcome(tmp_path, QUIET, QUIET, colpi=2).state == "lost"
+    assert outcome(tmp_path, QUIET) is None
+
+
+def test_other_wheels_count_only_when_asked_for(tmp_path):
+    elsewhere = {**QUIET, "milano": [30, 31, 1, 2, 3], "nazionale": [30, 31, 4, 5, 6]}
+    assert outcome(tmp_path, elsewhere, colpi=1).state == "lost"
+    assert outcome(tmp_path, elsewhere, colpi=1, play="tutte").wheels == ("milano",)
+    assert outcome(tmp_path, elsewhere, colpi=1, play="nazionale").wheels == (
+        "milano",
+        "nazionale",
+    )
+
+
 # ------------------------------------------------------------- a typed formula
 
 

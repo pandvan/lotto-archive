@@ -151,11 +151,21 @@ python -m http.server -d site 8000              # then open http://localhost:800
 
 The *Formule* tab takes a listing in the [JSON formula format](#the-json-formula-format),
 uploaded from disk and never sent anywhere, and runs it over the last year, the last 5
-or 10 years, or the whole archive, optionally keeping only the matches with no burnt
-bet (what `--clean` keeps) or only the *isotopi*. For every formula it lists the matches — which wheel
+or 10 years, or the whole archive, optionally hiding the burnt bets (a match goes only when
+every bet it had was burnt — `--clean` is stricter and drops a match for one) or keeping
+only the *isotopi*. For every formula it lists the matches — which wheel
 held which search number, whether they are *isotopi*, every bet and, for a bet the
 *retrovisione* burnt, the number, wheel, date and position that burnt it. Clicking a
-match opens that draw as a matrix with the numbers highlighted. `web/formula.js` is a
+match opens that draw as a matrix with the numbers highlighted.
+
+It also says how every clean bet **fared**: won when all its numbers came out together
+on one wheel of the match within the chosen *colpi* (20 by default), lost, or still
+open. *Esito su* widens the search to all ten city wheels, or to those and the
+Nazionale. Beside every win rate stands the rate chance alone gives for the same bets
+over the same wheels and colpi, and only bets whose colpi have all been drawn enter
+either. A ranking compares the formulas, a heatmap shows each one's gap from chance
+decade by decade (year by year on a short period) in standard errors, and an opened
+formula charts its wins colpo by colpo against the expected ones. `web/formula.js` is a
 port of `scripts/lotto/listing.py` at the default `medium` scope, and
 `tests/test_formula_js.py` holds the two to the same output (it needs `node`, and skips
 without it).
@@ -262,6 +272,8 @@ numbers landed, and the retrovisione has nothing to check.
 | `-z/--lookback Z` | stands in for `Rear` with `--search` (default 9) |
 | `--scope` | `strict` / `medium` / `loose` — wheels the retrovisione searches |
 | `--clean` | keep only matches the retrovisione left untouched |
+| `--colpi N` | also say how each bet fared over the N draws after its match |
+| `--play` | `match` / `tutte` / `nazionale` — wheels `--colpi` looks for a win on |
 | `--date`, `--scan`, `--since`, `--until` | one draw, or every draw of a range |
 | `--json` | the report as JSON |
 

@@ -246,6 +246,7 @@ header h1 {
 }
 
 select,
+input[type="number"],
 button {
   font: inherit;
   color: var(--ink);
@@ -558,16 +559,26 @@ svg { display: block; width: 100%; height: auto; overflow: visible; }
 
 /* ----------------------------------------------------------------- formulas */
 
-.fields {
+.groups { display: flex; flex-wrap: wrap; gap: 12px; }
+
+.groups fieldset {
   display: flex;
   flex-wrap: wrap;
   align-items: flex-end;
-  gap: 12px;
+  gap: 12px 16px;
+  min-width: 0;
+  margin: 0;
+  padding: 8px 14px 12px;
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius);
 }
 
-.check { display: inline-flex; align-items: center; gap: 6px; padding: 7px 0; cursor: pointer; }
+.groups legend { padding: 0 6px; color: var(--ink-2); font-size: 12px; font-weight: 600; }
 
-input[type="file"] { font: inherit; color: var(--ink); max-width: 100%; }
+.checks { display: flex; flex-direction: column; }
+.check { display: inline-flex; align-items: center; gap: 6px; padding: 2px 0; cursor: pointer; }
+
+input[type="file"] { font: inherit; color: var(--ink); width: 230px; max-width: 100%; padding: 6px 0; }
 
 details { border-top: 1px solid var(--grid); }
 details > summary { padding: 9px 0; cursor: pointer; font-variant-numeric: tabular-nums; }
@@ -618,6 +629,11 @@ button.link {
 }
 
 button.link.dirty { margin-right: 10px; color: var(--critical); }
+
+.outcome { color: var(--ink-muted); font-size: 13px; }
+.outcome.open { color: var(--ink-2); font-style: italic; }
+button.link.outcome.won { color: var(--good); font-weight: 600; }
+input[type="number"] { width: 84px; cursor: text; }
 
 dialog {
   max-width: min(560px, calc(100vw - 32px));

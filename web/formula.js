@@ -20,6 +20,12 @@ const WHEEL_ORDER = [
   'palermo', 'roma', 'torino', 'venezia', 'nazionale',
 ];
 
+/**
+ * Where a bet is looked for after its match: on its own wheels, on those and the ten
+ * city wheels, or on every wheel. `tutte` leaves the Nazionale out, as in the game.
+ */
+const PLAYS = ['match', 'tutte', 'nazionale'];
+
 /** A JSON array of numbers, checked and deduplicated in order. */
 function checkedNumbers(values, where) {
   if (!Array.isArray(values)) throw new Error(`${where}: not a list of numbers`);
@@ -105,13 +111,41 @@ function checkBet(draws, index, numbers, play, lookback) {
 }
 
 /**
+ * What became of a bet over the `colpi` draws after `draws[index]`: won when all its
+ * numbers came out together on one wheel, lost, or still open at the end of the archive.
+ * The whole window is walked even after a win, to count the wheel rows it offered.
+ */
+function outcomeOf(draws, index, numbers, play, colpi, on) {
+  if (!PLAYS.includes(on)) throw new Error(`unknown play "${on}"`);
+  const wheels = WHEEL_ORDER.filter((wheel) => play.includes(wheel) ||
+    on === 'nazionale' || (on === 'tutte' && wheel !== 'nazionale'));
+  const last = Math.min(draws.length - 1, index + colpi);
+  let rows = 0;
+  let won = null;
+  for (let i = index + 1; i <= last; i += 1) {
+    const hit = [];
+    for (const wheel of wheels) {
+      const row = draws[i].wheels[wheel];
+      if (!row || !row.length) continue;
+      rows += 1;
+      if (numbers.every((number) => row.includes(number))) hit.push(wheel);
+    }
+    if (hit.length && !won) won = { colpo: i - index, date: draws[i].date, wheels: hit };
+  }
+  const window = { colpi: last - index, rows };
+  if (won) return { state: 'won', ...window, ...won };
+  return { state: last - index === colpi ? 'lost' : 'open', ...window };
+}
+
+/**
  * Every match of `listing` over `draws` (oldest first, as data/all.min.json holds them),
  * from the ISO date `since` on. The retrovisione still reaches before `since`.
+ * With `colpi`, every bet also carries its outcome over that many draws after the match.
  *
  * A formula matches a draw when each of its search numbers came out on exactly one
  * wheel and those wheels number `listing.wheels`.
  */
-function scanListing(draws, listing, since = null) {
+function scanListing(draws, listing, since = null, colpi = 0, on = 'match') {
   const out = [];
   draws.forEach((draw, index) => {
     if (index < listing.lookback || (since && draw.date < since)) return;
@@ -150,8 +184,11 @@ function scanListing(draws, listing, since = null) {
         isotopic,
         bets: Object.fromEntries(BET_ORDER.map((name) => [
           name,
-          formula.bets[name].map((numbers) =>
-            checkBet(draws, index, numbers, wheels, listing.lookback)),
+          formula.bets[name].map((numbers) => {
+            const bet = checkBet(draws, index, numbers, wheels, listing.lookback);
+            if (colpi) bet.outcome = outcomeOf(draws, index, numbers, wheels, colpi, on);
+            return bet;
+          }),
         ])),
       });
     }
