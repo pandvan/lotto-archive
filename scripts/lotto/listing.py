@@ -36,7 +36,7 @@ from __future__ import annotations
 import datetime
 import json
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 
 from .model import WHEELS, DrawSet, LottoError, iso
@@ -67,6 +67,15 @@ BET_ORDER: tuple[str, ...] = tuple(BET_NAMES[size] for size in sorted(BET_NAMES)
 #:            playable on the other and is reported once per wheel.
 SCOPES: tuple[str, ...] = ("strict", "medium", "loose")
 DEFAULT_SCOPE = "medium"
+
+#: Where a bet is looked for after the match, when its outcome is asked for.
+#:
+#: ``match``      the wheels the bet is played on: those of the match. The default.
+#: ``tutte``      those, and the ten city wheels. In the game *tutte* leaves the
+#:                Nazionale out.
+#: ``nazionale``  every wheel, the Nazionale included.
+PLAYS: tuple[str, ...] = ("match", "tutte", "nazionale")
+DEFAULT_PLAY = "match"
 
 #: Header defaults of the original program, used when a formula is typed out instead
 #: of read from a file that carries its own header.
@@ -153,6 +162,35 @@ class Listing:
 
 
 @dataclass(frozen=True)
+class Outcome:
+    """What became of a bet over the *colpi* -- the draws -- after its match.
+
+    A bet wins when all of its numbers come out together on one wheel; the first draw
+    that does it closes the bet. It is ``open`` while it has not won and the archive
+    holds fewer draws after the match than were asked for.
+    """
+
+    #: ``won``, ``lost`` or ``open``.
+    state: str
+    #: Draws after the match the archive holds, capped at the colpi asked for: less
+    #: than that means the window is not over yet, whatever the state.
+    colpi: int
+    #: Wheel rows searched over the whole window, win or not -- what the chance of
+    #: winning by luck depends on.
+    rows: int
+    #: 1-based draw after the match that won, with its date and every wheel that did.
+    colpo: int | None = None
+    date: datetime.date | None = None
+    wheels: tuple[str, ...] = ()
+
+    def as_dict(self) -> dict:
+        out = {"state": self.state, "colpi": self.colpi, "rows": self.rows}
+        if self.state == "won":
+            out |= {"colpo": self.colpo, "date": iso(self.date), "wheels": list(self.wheels)}
+        return out
+
+
+@dataclass(frozen=True)
 class CheckedBet:
     """A bet after the *retrovisione*: clean, or already out and where."""
 
@@ -166,6 +204,8 @@ class CheckedBet:
     seen_date: datetime.date | None = None
     #: Extraction position, 1-5, of the number that rejected the bet.
     seen_position: int | None = None
+    #: How the bet fared afterwards; only when colpi were asked for.
+    outcome: Outcome | None = None
 
     def as_dict(self) -> dict:
         out = {
@@ -180,6 +220,8 @@ class CheckedBet:
                 "date": iso(self.seen_date),
                 "position": self.seen_position,
             }
+        if self.outcome is not None:
+            out["outcome"] = self.outcome.as_dict()
         return out
 
 
@@ -472,6 +514,46 @@ def _check_one(
     return CheckedBet(bet=bet, clean=True, play=play)
 
 
+def outcome_of(
+    draws: DrawSet,
+    dates: list[datetime.date],
+    index: int,
+    bet: Bet,
+    play: tuple[str, ...],
+    colpi: int,
+    on: str = DEFAULT_PLAY,
+) -> Outcome:
+    """Look for ``bet`` whole on one wheel over the ``colpi`` draws after ``dates[index]``.
+
+    ``play`` is the wheels the bet is played on and ``on`` how far past them to look --
+    see :data:`PLAYS`. The whole window is walked even after a win, to count its rows.
+    """
+    if on not in PLAYS:
+        raise LottoError(f"unknown play {on!r}, expected one of {', '.join(PLAYS)}")
+    wheels = [
+        wheel
+        for wheel in WHEELS
+        if wheel in play or on == "nazionale" or (on == "tutte" and wheel != "nazionale")
+    ]
+    window = dates[index + 1:index + 1 + colpi]
+    rows = 0
+    won = None
+    for colpo, day in enumerate(window, start=1):
+        hit = []
+        for wheel in wheels:
+            row = draws[day].get(wheel)
+            if not row:
+                continue
+            rows += 1
+            if all(number in row for number in bet.numbers):
+                hit.append(wheel)
+        if hit and won is None:
+            won = (colpo, day, tuple(hit))
+    if won:
+        return Outcome("won", len(window), rows, *won)
+    return Outcome("lost" if len(window) == colpi else "open", len(window), rows)
+
+
 def apply(
     draws: DrawSet,
     date: datetime.date,
@@ -479,12 +561,18 @@ def apply(
     *,
     clean_only: bool = False,
     scope: str = DEFAULT_SCOPE,
+    colpi: int = 0,
+    play: str = DEFAULT_PLAY,
 ) -> ListingReport:
     """Run every formula of ``listing`` against the draw of ``date``.
 
     ``clean_only`` keeps just the matches the retrovisione left untouched -- every bet
     still playable, none of their numbers already out on the matching wheels. It is a
     filter on the report, not a different rule: a match it drops is still a match.
+
+    With ``colpi``, every bet also carries its :class:`Outcome` over that many draws
+    after ``date``, looked for on the ``play`` wheels -- see :data:`PLAYS`. A burnt bet
+    gets one too: what to do with it is the reader's call.
     """
     dates = sorted(draws)
     try:
@@ -530,7 +618,14 @@ def apply(
                 found=found,
                 isotopic=_isotopic(day, found),
                 bets=tuple(
-                    checked
+                    replace(
+                        checked,
+                        outcome=outcome_of(
+                            draws, dates, index, bet, checked.play, colpi, play
+                        ),
+                    )
+                    if colpi
+                    else checked
                     for bet in formula.bets
                     for checked in check_rear(
                         draws, dates, index, bet, wheels, listing.lookback, scope
@@ -645,6 +740,8 @@ def scan(
     until: datetime.date | None = None,
     clean_only: bool = False,
     scope: str = DEFAULT_SCOPE,
+    colpi: int = 0,
+    play: str = DEFAULT_PLAY,
 ) -> list[ListingReport]:
     """Every draw of the range that at least one formula matched, oldest first.
 
@@ -656,7 +753,10 @@ def scan(
         for day in sorted(draws)
         if (since is None or day >= since) and (until is None or day <= until)
         for report in (
-            apply(draws, day, listing, clean_only=clean_only, scope=scope),
+            apply(
+                draws, day, listing,
+                clean_only=clean_only, scope=scope, colpi=colpi, play=play,
+            ),
         )
         if report.satisfied
     ]

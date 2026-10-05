@@ -87,6 +87,18 @@ const LABELS = {
     ['10', 'Ultimi 10 anni'],
     ['all', "Tutto l'archivio"],
   ],
+  // Where a bet's outcome is looked for; the ids are the PLAYS of formula.js.
+  plays: [
+    ['match', 'Ruote del riscontro'],
+    ['tutte', 'Tutte le ruote'],
+    ['nazionale', 'Tutte e Nazionale'],
+  ],
+  // The three readings of a listing's results; the ids are what the address shows.
+  formulaViews: [
+    ['matches', 'Riscontri'],
+    ['ranking', 'Classifica'],
+    ['time', 'Nel tempo'],
+  ],
 };
 
 const DEFAULT_TAB = 'board';
@@ -370,8 +382,11 @@ function deviationChart({ data, height = 200, labelEvery = 1, unit = '' }) {
 
 const SEQ_STEPS = ['--seq-1', '--seq-2', '--seq-3', '--seq-4', '--seq-5', '--seq-6'];
 
-/** Rows of cells on one sequential blue ramp, light to dark. */
-function heatmap({ columns, rows, value, cellW = 11, cellH = 26, tipFor }) {
+/**
+ * Rows of cells on one sequential blue ramp, light to dark. A null value is an empty
+ * cell; `domain` fixes the two ends of the ramp instead of taking them from the data.
+ */
+function heatmap({ columns, rows, value, cellW = 11, cellH = 26, labelEvery = 5, domain = null, tipFor }) {
   const pad = { top: 8, right: 8, bottom: 20, left: 74 };
   const width = pad.left + columns.length * cellW + pad.right;
   const height = pad.top + rows.length * cellH + pad.bottom;
@@ -380,13 +395,16 @@ function heatmap({ columns, rows, value, cellW = 11, cellH = 26, tipFor }) {
   for (let r = 0; r < rows.length; r += 1) {
     for (let c = 0; c < columns.length; c += 1) {
       const v = value(r, c);
+      if (v == null) continue;
       if (v < lo) lo = v;
       if (v > hi) hi = v;
     }
   }
+  if (domain) [lo, hi] = domain;
   const stepFor = (v) => {
+    if (v == null) return '--seq-0';
     if (hi === lo) return SEQ_STEPS[Math.floor(SEQ_STEPS.length / 2)];
-    const t = (v - lo) / (hi - lo);
+    const t = Math.max(0, (v - lo) / (hi - lo));
     return SEQ_STEPS[Math.min(SEQ_STEPS.length - 1, Math.floor(t * SEQ_STEPS.length))];
   };
 
@@ -410,7 +428,7 @@ function heatmap({ columns, rows, value, cellW = 11, cellH = 26, tipFor }) {
     });
   });
   columns.forEach((colLabel, c) => {
-    if (c % 5 !== 0 && c !== columns.length - 1) return;
+    if (c % labelEvery !== 0 && c !== columns.length - 1) return;
     const label = svgEl('text', {
       class: 'tick', x: pad.left + c * cellW + cellW / 2, y: height - 6, 'text-anchor': 'middle',
     });
@@ -512,7 +530,10 @@ const state = {
   cache: new Map(),
   draws: null,
   grid: null,
-  formula: { listing: null, period: '1', cleanOnly: false, isotopicOnly: false },
+  formula: {
+    listing: null, period: '1', cleanOnly: false, isotopicOnly: false, wonOnly: false,
+    colpi: 20, play: 'match', kind: 'all', view: 'matches',
+  },
 };
 
 const wheelName = (id) => LABELS.wheels[id] ?? id;
@@ -1036,11 +1057,34 @@ function showFormula(formula, listing, found) {
   dialog.showModal();
 }
 
+/** How a played bet fared: lost, still open, or won — and then the draw that did it. */
+function outcomeNode(bet, byDate) {
+  const { outcome } = bet;
+  if (outcome.state === 'lost') return el('span', { class: 'outcome', text: 'persa' });
+  if (outcome.state === 'open') {
+    return el('span', {
+      class: 'outcome open', text: `in corso, ${outcome.colpi} di ${state.formula.colpi} colpi`,
+    });
+  }
+  return el('button', {
+    type: 'button',
+    class: 'link outcome won',
+    title: 'Mostra l\'estrazione vincente',
+    text: `vinta al ${outcome.colpo}° colpo su ${outcome.wheels.map(wheelName).join(' e ')}`,
+    onclick: (event) => {
+      event.stopPropagation();
+      showDraw(byDate.get(outcome.date),
+        (wheel, n) => (outcome.wheels.includes(wheel) && bet.numbers.includes(n) ? 'hit' : null),
+        `Giocata ${bet.numbers.join('-')} uscita al ${outcome.colpo}° colpo.`);
+    },
+  });
+}
+
 /** A checked bet: its numbers, and when the retrovisione burnt it, where and when. */
 function betNode(bet, byDate) {
   const numbers = el('span', { class: bet.clean ? 'bet' : 'bet dirty' },
     bet.numbers.map((n) => el('span', { class: 'ball', text: String(n) })));
-  if (bet.clean) return numbers;
+  if (bet.clean) return el('span', {}, numbers, outcomeNode(bet, byDate));
   const { seen } = bet;
   return el('span', {}, numbers, el('button', {
     type: 'button',
@@ -1102,6 +1146,121 @@ function findingRow(match, byDate) {
       : 'nessuna giocata'));
 }
 
+/** The chance that a bet of `size` numbers comes out whole on one wheel in one draw. */
+const hitChance = (size) =>
+  [5, 4, 3, 2, 1].slice(0, size).reduce((p, left, k) => (p * left) / (90 - k), 1);
+
+/** A match's bets of the chosen kind that were played: the dirty ones are not. */
+const playedBets = (match) => BET_ORDER
+  .filter((name) => ['all', name].includes(state.formula.kind))
+  .flatMap((name) => match.bets[name])
+  .filter((bet) => bet.clean);
+
+/**
+ * What a rate is made of: the played bets whose colpi have all been drawn. A bet that
+ * won early in a window still running is left out with the ones that have not, or the
+ * latest draws would count their wins and none of their losses.
+ */
+function tally(matches) {
+  const out = { played: 0, won: 0, expected: 0, colpo: 0 };
+  for (const bet of matches.flatMap(playedBets)) {
+    if (bet.outcome.colpi < state.formula.colpi) continue;
+    out.played += 1;
+    out.expected += 1 - (1 - hitChance(bet.numbers.length)) ** bet.outcome.rows;
+    if (bet.outcome.state === 'won') {
+      out.won += 1;
+      out.colpo += bet.outcome.colpo;
+    }
+  }
+  if (!out.played) return { ...out, rate: null, chance: null, gap: null, sigma: null, mean: null };
+  const rate = (100 * out.won) / out.played;
+  const chance = (100 * out.expected) / out.played;
+  const gap = rate - chance;
+  // The gap in standard errors of the rate, so three bets do not outshine three thousand.
+  // A certain win or a certain loss has no spread, and no gap either.
+  const sigma = gap ? gap / Math.sqrt((chance * (100 - chance)) / out.played) : 0;
+  return { ...out, rate, chance, gap, sigma, mean: out.won ? out.colpo / out.won : null };
+}
+
+const percent = (v) => (v == null ? '—' : `${dec(v)}%`);
+const gapNode = (v) => el('span', { class: v > 0 ? 'over' : v < 0 ? 'under' : null, text: signed(v, 1) });
+
+/** Formulas against time: how far above or below chance each one ran, period by period. */
+function outcomeMap(rows, matches) {
+  const years = matches.map((match) => Number(match.date.slice(0, 4)));
+  const first = Math.min(...years);
+  const last = Math.max(...years);
+  const step = last - first > 15 ? 10 : 1;
+  const bucket = (year) => Math.floor(year / step) * step;
+  const columns = [];
+  for (let year = bucket(first); year <= last; year += step) columns.push(year);
+
+  const cells = rows.map((row) => {
+    const byBucket = new Map();
+    for (const match of row.found) {
+      const key = bucket(Number(match.date.slice(0, 4)));
+      if (!byBucket.has(key)) byBucket.set(key, []);
+      byBucket.get(key).push(match);
+    }
+    return columns.map((key) => tally(byBucket.get(key) ?? []));
+  });
+  const period = (year) => (step === 10 ? `${year}-${String(year + 9).slice(2)}` : String(year));
+  const map = heatmap({
+    columns: columns.map(String),
+    rows: rows.map((row) => row.label),
+    value: (r, c) => cells[r][c].sigma,
+    domain: [-3, 3],
+    cellW: step === 10 ? 56 : 34,
+    cellH: 18,
+    labelEvery: 1,
+    tipFor: (r, c) => {
+      const cell = cells[r][c];
+      const head = `<b>${rows[r].label}</b> · ${period(columns[c])}<br>`;
+      return cell.played
+        ? `${head}${num(cell.won)} vinte su ${num(cell.played)}: <b>${percent(cell.rate)}</b><br>` +
+          `attesa ${percent(cell.chance)}, scarto <b>${signed(cell.gap, 1)}</b>`
+        : `${head}nessuna giocata conclusa`;
+    },
+  });
+  // Charts fill their card; this one keeps its cell size, however few its columns.
+  map.svg.style.maxWidth = `${map.svg.getAttribute('width')}px`;
+  return el('figure', {},
+    el('div', { class: 'grid-box' }, map.svg),
+    el('p', { class: 'scale' },
+      'sotto il caso',
+      el('span', { class: 'steps' }, SEQ_STEPS.map((step) => el('i', { style: `background: var(${step})` }))),
+      'sopra il caso'));
+}
+
+/** When a formula's wins came, colpo by colpo, against when luck alone puts them. */
+function colpoChart(found) {
+  const { colpi } = state.formula;
+  const won = Array(colpi).fill(0);
+  const expected = Array(colpi).fill(0);
+  for (const bet of found.flatMap(playedBets)) {
+    const { outcome } = bet;
+    if (outcome.colpi < colpi) continue;
+    if (outcome.state === 'won') won[outcome.colpo - 1] += 1;
+    // One draw's chance, from the rows the window really had; then a geometric wait.
+    const miss = (1 - hitChance(bet.numbers.length)) ** (outcome.rows / colpi);
+    for (let c = 0; c < colpi; c += 1) expected[c] += miss ** c * (1 - miss);
+  }
+  if (!won.some(Boolean)) return null;
+  return el('figure', {},
+    el('figcaption', { text: 'Giocate vinte per colpo' }),
+    barChart({
+      height: 160,
+      labelEvery: Math.ceil(colpi / 20),
+      data: won.map((value, c) => ({
+        label: String(c + 1),
+        value,
+        mark: expected[c],
+        tip: `<b>${c + 1}° colpo</b><br>${num(value)} vinte, attese ${dec(expected[c])}`,
+      })),
+    }),
+    legend(['bar', 'vinte'], ['ref', 'attese per caso']));
+}
+
 function formulaResults(draws, listing, matches) {
   const byDate = new Map(draws.map((draw) => [draw.date, draw]));
   const byFormula = new Map();
@@ -1110,25 +1269,46 @@ function formulaResults(draws, listing, matches) {
     byFormula.get(match.formula).push(match);
   }
   const bets = matches.flatMap((match) => Object.values(match.bets).flat());
+  const total = tally(matches);
+  const open = matches.flatMap(playedBets).filter((bet) => bet.outcome.state === 'open').length;
 
-  const sections = listing.formulas.filter((formula) => byFormula.has(formula)).map((formula) => {
+  const ranking = listing.formulas.filter((formula) => byFormula.has(formula)).map((formula) => {
     const found = byFormula.get(formula);
+    return { formula, found, number: formula.index, matches: found.length, ...tally(found) };
+  });
+  const sectionOf = new Map();
+
+  // "Won only" trims the list of matches and nothing else: the rates still count every
+  // played bet, or each of them would read 100%.
+  const won = (match) => ({
+    ...match,
+    bets: Object.fromEntries(Object.entries(match.bets).map(([name, played]) =>
+      // A dirty bet was not played: it has no win to show, whatever its numbers did next.
+      [name, played.filter((bet) => bet.clean && bet.outcome.state === 'won')])),
+  });
+  const sections = ranking.map(({ formula, found, played, rate, chance }) => {
+    const listed = state.formula.wonOnly
+      ? found.map(won).filter((match) => Object.values(match.bets).flat().length)
+      : found;
+    if (!listed.length) return null;
     const body = el('div', { class: 'scroll' });
-    return el('details', {
+    const section = el('details', {
       // A long scan finds thousands of matches: build a formula's rows when it is opened.
       ontoggle: (event) => {
         if (!event.target.open || body.firstChild) return;
-        body.append(el('table', { class: 'findings' },
+        body.append(colpoChart(found) ?? '', el('table', { class: 'findings' },
           el('thead', {}, el('tr', {}, ['Estrazione', 'Numeri trovati', 'Isotopia', 'Giocate']
             .map((label) => el('th', { scope: 'col', text: label })))),
-          el('tbody', {}, [...found].reverse().map((match) => findingRow(match, byDate)))));
+          el('tbody', {}, [...listed].reverse().map((match) => findingRow(match, byDate)))));
       },
     },
       el('summary', {},
         el('b', { text: `Formula ${formula.index}` }),
         el('span', { class: 'found' },
           formula.numbers.map((n) => el('span', { class: 'ball', text: String(n) }))),
-        `${num(found.length)} ${found.length === 1 ? 'riscontro' : 'riscontri'}`,
+        `${num(listed.length)} ${listed.length === 1 ? 'riscontro' : 'riscontri'}` +
+          (state.formula.wonOnly ? ` con vincita su ${num(found.length)}` : ''),
+        played ? ` · ${percent(rate)} vinte, attesa ${percent(chance)}` : '',
         el('button', {
           type: 'button',
           class: 'link',
@@ -1138,9 +1318,79 @@ function formulaResults(draws, listing, matches) {
           onclick: (event) => { event.preventDefault(); showFormula(formula, listing, found); },
         })),
       body);
-  });
+    sectionOf.set(formula, section);
+    return section;
+  }).filter(Boolean);
 
-  return card(listing.name, null,
+  const scored = ranking.filter((row) => row.played);
+  const outcomes = scored.length ? [
+    card('Classifica delle formule',
+      `Per ogni formula, le giocate pulite i cui ${num(state.formula.colpi)} colpi sono già tutti ` +
+      'estratti: quante hanno vinto, e quante avrebbero vinto <em>per caso</em> giocando numeri ' +
+      'qualsiasi sulle stesse ruote per gli stessi colpi. Lo <strong>scarto</strong> è la ' +
+      'differenza, in punti percentuali: con poche giocate oscilla molto da solo.',
+      table([
+        {
+          key: 'number',
+          label: 'Formula',
+          startAscending: true,
+          cell: (row) => el('button', {
+            type: 'button',
+            class: 'link',
+            title: 'Vai ai riscontri della formula',
+            text: `Formula ${row.number}`,
+            onclick: () => {
+              const section = sectionOf.get(row.formula);
+              show('matches');
+              // Not listed when only wins are shown and it has none.
+              if (!section) return;
+              section.open = true;
+              section.scrollIntoView({ block: 'start' });
+            },
+          }),
+        },
+        { key: 'matches', label: 'Riscontri' },
+        { key: 'played', label: 'Giocate', title: 'Giocate pulite con tutti i colpi estratti' },
+        { key: 'won', label: 'Vinte' },
+        { key: 'rate', label: 'Vinte %', cell: (row) => percent(row.rate) },
+        { key: 'chance', label: 'Attesa %', cell: (row) => percent(row.chance) },
+        { key: 'gap', label: 'Scarto', cell: (row) => gapNode(row.gap) },
+        { key: 'mean', label: 'Colpo medio', title: 'Colpo medio delle giocate vinte', cell: (row) => dec(row.mean) },
+      ], scored, { sortKey: 'gap' })),
+    card('Nel tempo',
+      'Lo scarto dall\'attesa di ogni formula, periodo per periodo, pesato per quante giocate ' +
+      'lo sostengono: i due estremi della scala sono tre deviazioni standard sotto e sopra il ' +
+      'caso, e il colore di mezzo è il caso. Una cella vuota non ha giocate concluse. La prima ' +
+      'riga è il listato intero.',
+      outcomeMap([
+        { label: 'Listato', found: matches },
+        ...scored.map((row) => ({ label: `Formula ${row.number}`, found: row.found })),
+      ], matches)),
+  ] : [];
+
+  const unsettled = () => el('p', { class: 'unavailable', text: 'Nessuna giocata conclusa nel periodo.' });
+  const panels = {
+    matches: card('Riscontri', 'Formula per formula, dal riscontro più recente, con l\'esito di ogni giocata.',
+      sections.length
+        ? el('div', {}, sections)
+        : el('p', { class: 'unavailable', text: 'Nessuna giocata vinta nel periodo.' })),
+    ranking: outcomes[0] ?? unsettled(),
+    time: outcomes[1] ?? unsettled(),
+  };
+  const tabs = el('nav', { class: 'tabs', role: 'tablist', 'aria-label': 'Risultati' },
+    LABELS.formulaViews.map(([id, label]) => el('button', {
+      type: 'button', role: 'tab', 'data-view': id, text: label, onclick: () => show(id),
+    })));
+  // All three are built once; a tab only chooses which one is in view.
+  function show(view) {
+    state.formula.view = view;
+    syncHash();
+    for (const [id, panel] of Object.entries(panels)) panel.hidden = id !== view;
+    for (const tab of tabs.children) tab.setAttribute('aria-selected', String(tab.dataset.view === view));
+  }
+  show(state.formula.view);
+
+  return el('div', {}, card(listing.name, null,
     el('p', {
       class: 'help',
       text: `${num(listing.size)} numeri di ricerca su ${num(listing.wheels)} ruote, ` +
@@ -1151,10 +1401,15 @@ function formulaResults(draws, listing, matches) {
       tile('Formule', num(listing.formulas.length), `${num(byFormula.size)} con riscontri`),
       tile('Riscontri', num(matches.length),
         `${num(matches.filter((match) => match.isotopic).length)} con isotopia`),
-      tile('Giocate', num(bets.length), `${num(bets.filter((bet) => !bet.clean).length)} sporche`)),
-    sections.length
-      ? el('div', {}, sections)
-      : el('p', { class: 'unavailable', text: 'Nessun riscontro nel periodo.' }));
+      tile('Giocate', num(bets.length), `${num(bets.filter((bet) => !bet.clean).length)} sporche`),
+      tile('Vinte', percent(total.rate),
+        total.played ? `${num(total.won)} su ${num(total.played)}, attesa ${percent(total.chance)}` : 'nessuna giocata conclusa'),
+      tile('Colpo medio', dec(total.mean), 'delle giocate vinte'),
+      tile('In corso', num(open), 'giocate da seguire')),
+    matches.length
+      ? null
+      : el('p', { class: 'unavailable', text: 'Nessun riscontro nel periodo.' })),
+  matches.length ? [tabs, ...Object.values(panels)] : null);
 }
 
 function renderFormule() {
@@ -1171,11 +1426,22 @@ function renderFormule() {
         ? null
         : `${Number(last.slice(0, 4)) - Number(formula.period)}${last.slice(4)}`;
       status.textContent = '';
-      // Filters on the report, not a different rule: a match they hide is still a match.
-      // "Clean" is what scripts/formula.py --clean keeps: no bet burnt by the retrovisione.
-      const matches = scanListing(draws, formula.listing, since).filter((match) =>
-        (!formula.isotopicOnly || match.isotopic) &&
-        (!formula.cleanOnly || Object.values(match.bets).flat().every((bet) => bet.clean)));
+      // Filters on the report, not a different rule: what they hide was still found.
+      // "Clean" drops the bets the retrovisione burnt and keeps the others; a match goes
+      // only when every bet it had is gone. scripts/formula.py --clean is stricter: one
+      // burnt bet there drops the whole match.
+      const matches = scanListing(
+        draws, formula.listing, since, formula.colpi, formula.play,
+      ).filter((match) => !formula.isotopicOnly || match.isotopic).flatMap((match) => {
+        if (!formula.cleanOnly) return [match];
+        const all = Object.values(match.bets).flat();
+        if (all.length && all.every((bet) => !bet.clean)) return [];
+        return [{
+          ...match,
+          bets: Object.fromEntries(Object.entries(match.bets).map(([name, bets]) =>
+            [name, bets.filter((bet) => bet.clean)])),
+        }];
+      });
       out.replaceChildren(formulaResults(draws, formula.listing, matches));
     } catch (error) {
       status.textContent = `Impossibile caricare le estrazioni (${error.message}).`;
@@ -1206,6 +1472,28 @@ function renderFormule() {
     value: id, selected: id === formula.period, text: label,
   })));
 
+  const colpi = el('input', {
+    type: 'number',
+    id: 'formula-colpi',
+    min: 1,
+    max: 500,
+    value: formula.colpi,
+    onchange: () => {
+      formula.colpi = Math.min(500, Math.max(1, Math.round(Number(colpi.value)) || 20));
+      colpi.value = formula.colpi;
+      syncHash();
+      run();
+    },
+  });
+  const choice = (id, key, options) => {
+    const select = el('select', {
+      id, onchange: () => { formula[key] = select.value; run(); },
+    }, options.map(([value, label]) => el('option', {
+      value, selected: value === formula[key], text: label,
+    })));
+    return select;
+  };
+
   const toggle = (key, label) => el('label', { class: 'check' },
     el('input', {
       type: 'checkbox',
@@ -1214,6 +1502,11 @@ function renderFormule() {
     }),
     label);
 
+  // What to run, which matches to keep, how to judge their bets: one box each.
+  const group = (title, ...body) => el('fieldset', {}, el('legend', { text: title }), body);
+  const field = (id, label, control) =>
+    el('div', { class: 'field' }, el('label', { for: id, text: label }), control);
+
   run();
   return el('div', {},
     card('Formule',
@@ -1221,13 +1514,23 @@ function renderFormule() {
       'e scegli quante estrazioni considerare. Una formula ha un riscontro quando ognuno dei ' +
       'suoi numeri di ricerca è uscito su una sola ruota; una giocata è <strong>sporca</strong> ' +
       'quando uno dei suoi numeri è già uscito sulle ruote del riscontro nelle estrazioni della ' +
-      'retrovisione. Il file resta nel tuo browser. Una formula seleziona, non prevede: le ' +
+      'retrovisione. Una giocata pulita è <strong>vinta</strong> quando tutti i suoi numeri ' +
+      'escono insieme su una ruota entro i colpi scelti. Il file resta nel tuo browser. Una formula seleziona, non prevede: le ' +
       'estrazioni sono indipendenti.',
-      el('div', { class: 'fields' },
-        el('div', { class: 'field' }, el('label', { for: 'listing', text: 'Listato' }), file),
-        el('div', { class: 'field' }, el('label', { for: 'formula-period', text: 'Estrazioni' }), period),
-        toggle('cleanOnly', 'Nascondi i riscontri con giocate sporche'),
-        toggle('isotopicOnly', 'Solo isotopi')),
+      el('div', { class: 'groups' },
+        group('Listato',
+          field('listing', 'File JSON', file)),
+        group('Riscontri',
+          field('formula-period', 'Estrazioni', period),
+          el('div', { class: 'checks' },
+            toggle('cleanOnly', 'Nascondi le giocate sporche'),
+            toggle('isotopicOnly', 'Solo isotopi'))),
+        group('Esito delle giocate',
+          field('formula-colpi', 'Colpi', colpi),
+          field('formula-play', 'Cercato su', choice('formula-play', 'play', LABELS.plays)),
+          field('formula-kind', 'Sorte',
+            choice('formula-kind', 'kind', [['all', 'Tutte'], ...BET_ORDER.map((name) => [name, name])])),
+          el('div', { class: 'checks' }, toggle('wonOnly', 'Solo giocate vinte')))),
       status),
     out);
 }
@@ -1330,14 +1633,14 @@ async function render() {
 /**
  * The address is the tab, then what that tab depends on: `#/pairs/napoli/all`,
  * `#/followers/napoli/all/12`. A listing is run over every wheel and its own period, so
- * its tab carries only that: `#/formulas/5`.
+ * its tab carries only that, its colpi and the view of the results: `#/formulas/5/20/ranking`.
  *
  * The address is English throughout, so the pseudo-wheel `tutte` is written `all` there
  * and nowhere else: it stays `tutte` in the data and in the state.
  */
 function syncHash() {
   const parts = state.tab === 'formulas'
-    ? ['', state.tab, state.formula.period]
+    ? ['', state.tab, state.formula.period, String(state.formula.colpi), state.formula.view]
     : ['', state.tab, state.wheel === 'tutte' ? 'all' : state.wheel, state.period];
   if (state.tab === 'followers') parts.push(String(state.spy));
   history.replaceState(null, '', `#${parts.join('/')}`);
@@ -1349,6 +1652,9 @@ function readHash() {
   state.tab = tab;
   if (tab === 'formulas') {
     if (LABELS.formulaPeriods.some(([id]) => id === rest[0])) state.formula.period = rest[0];
+    const colpi = Number(rest[1]);
+    if (Number.isInteger(colpi) && colpi >= 1 && colpi <= 500) state.formula.colpi = colpi;
+    if (LABELS.formulaViews.some(([id]) => id === rest[2])) state.formula.view = rest[2];
     return;
   }
   const [inAddress, period, spy] = rest;

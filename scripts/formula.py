@@ -31,8 +31,10 @@ from _common import REPO_ROOT
 from lotto.archive import load
 from lotto.listing import (
     DEFAULT_LOOKBACK,
+    DEFAULT_PLAY,
     DEFAULT_SCOPE,
     DEFAULT_WHEELS,
+    PLAYS,
     SCOPES,
     Listing,
     ListingReport,
@@ -102,6 +104,22 @@ def parse_args() -> argparse.Namespace:
         "bets has nothing to burn and is kept",
     )
     parser.add_argument(
+        "--colpi",
+        type=int,
+        default=0,
+        metavar="N",
+        help="also say how each bet fared over the N draws after its match: won when "
+        "all its numbers came out together on one wheel, and at which colpo",
+    )
+    parser.add_argument(
+        "--play",
+        choices=PLAYS,
+        default=DEFAULT_PLAY,
+        help="where --colpi looks for a win: match the wheels of the match, tutte "
+        "those and the ten city wheels, nazionale every wheel "
+        f"(default: {DEFAULT_PLAY})",
+    )
+    parser.add_argument(
         "--date",
         type=datetime.date.fromisoformat,
         default=None,
@@ -135,6 +153,18 @@ def _combo(numbers: tuple[int, ...]) -> str:
     return "-".join(str(n) for n in numbers)
 
 
+def _outcome(checked) -> str:
+    outcome = checked.outcome
+    if outcome is None:
+        return ""
+    if outcome.state == "won":
+        return (
+            f" [won at colpo {outcome.colpo} on {' '.join(outcome.wheels)}"
+            f" {iso(outcome.date)}]"
+        )
+    return " [lost]" if outcome.state == "lost" else f" [open, {outcome.colpi} played]"
+
+
 def format_match(match: Match, ordinal: int) -> list[str]:
     found = " · ".join(
         f"{wheel} {' '.join(str(n) for n in numbers)}"
@@ -159,6 +189,7 @@ def format_match(match: Match, ordinal: int) -> list[str]:
                 else f" (out: {checked.seen_number} on {checked.seen_wheel}"
                 f" {iso(checked.seen_date)}, position {checked.seen_position})"
             )
+            + _outcome(checked)
             for checked in bets
         )
         lines.append(f"     {name:<9} {played}")
@@ -200,6 +231,8 @@ def run(args, draws, contests) -> int:
             until=args.until,
             clean_only=args.clean,
             scope=args.scope,
+            colpi=args.colpi,
+            play=args.play,
         )
     else:
         reports = [
@@ -209,6 +242,8 @@ def run(args, draws, contests) -> int:
                 listing,
                 clean_only=args.clean,
                 scope=args.scope,
+                colpi=args.colpi,
+                play=args.play,
             )
         ]
 

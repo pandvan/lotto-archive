@@ -32,6 +32,8 @@ inventing an English one.
 | giocata | `bet` | |
 | sorte | `bet kind` | which of the five lists a bet belongs to |
 | retrovisione | `lookback` | how many draws back a check reaches |
+| colpo / colpi | `colpo`, `colpi` | a draw after the match in which a bet is played; `colpi` is how many of them. No English word |
+| esito | `outcome` | how a bet fared over its colpi: `won`, `lost`, `open` |
 
 **Never call the container a formula.** A listing holds formulas; a formula holds bets.
 The `.frm` header (`SearchNum`, `SearchDrm`, `Rear`) belongs to the listing, not to any

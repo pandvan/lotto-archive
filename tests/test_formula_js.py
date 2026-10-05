@@ -17,12 +17,14 @@ NODE = shutil.which("node")
 RUNNER = """
 const { readListing, scanListing } = require(process.argv[1]);
 const input = JSON.parse(require('fs').readFileSync(0, 'utf8'));
-console.log(JSON.stringify(scanListing(input.draws, readListing(input.listing), input.since)));
+console.log(JSON.stringify(scanListing(
+  input.draws, readListing(input.listing), input.since, input.colpi, input.play)));
 """
 
 
 @pytest.mark.skipif(NODE is None, reason="node is not installed")
-def test_the_js_port_finds_what_the_python_finds():
+@pytest.mark.parametrize("play", listing.PLAYS)
+def test_the_js_port_finds_what_the_python_finds(play):
     rng = random.Random(0)
     start = datetime.date(2026, 1, 1)
     draws = {
@@ -52,7 +54,9 @@ def test_the_js_port_finds_what_the_python_finds():
 
     expected = [
         {"date": iso(report.date), **match.as_dict()}
-        for report in listing.scan(draws, listing.from_json(payload), since=since)
+        for report in listing.scan(
+            draws, listing.from_json(payload), since=since, colpi=5, play=play
+        )
         for match in report.matches
     ]
     # The sample has to exercise every branch, or agreeing on it proves nothing.
@@ -60,6 +64,7 @@ def test_the_js_port_finds_what_the_python_finds():
     assert any(not match["isotopic"] for match in expected)
     bets = [bet for match in expected for kind in match["bets"].values() for bet in kind]
     assert any(bet["clean"] for bet in bets) and any(not bet["clean"] for bet in bets)
+    assert {bet["outcome"]["state"] for bet in bets} == {"won", "lost", "open"}
 
     done = subprocess.run(
         [NODE, "-e", RUNNER, str(REPO_ROOT / "web" / "formula.js")],
@@ -70,6 +75,8 @@ def test_the_js_port_finds_what_the_python_finds():
                 ],
                 "listing": payload,
                 "since": iso(since),
+                "colpi": 5,
+                "play": play,
             }
         ),
         capture_output=True,
