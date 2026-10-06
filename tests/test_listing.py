@@ -250,6 +250,21 @@ def test_a_typed_formula_runs_like_a_file_one():
     assert match.bets[0].clean
 
 
+def test_the_lookback_flag_overrides_the_listing(tmp_path):
+    import argparse
+
+    import formula
+
+    path = tmp_path / "x.json"
+    path.write_text(
+        json.dumps(listing.one_formula("71 81", wheel_count=2, lookback=4).as_dict())
+    )
+    args = argparse.Namespace(listing=path, lookback=None)
+    assert formula.listing_from(args).lookback == 4
+    args.lookback = 7
+    assert formula.listing_from(args).lookback == 7
+
+
 # --------------------------------------------------------------------- the json
 
 

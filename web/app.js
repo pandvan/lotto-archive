@@ -531,7 +531,7 @@ const state = {
   draws: null,
   grid: null,
   formula: {
-    listing: null, period: '1', cleanOnly: false, isotopicOnly: false, wonOnly: false,
+    listing: null, lookback: null, period: '1', cleanOnly: false, isotopicOnly: false, wonOnly: false,
     colpi: 20, play: 'match', kind: 'all', view: 'matches',
   },
 };
@@ -1430,8 +1430,10 @@ function renderFormule() {
       // "Clean" drops the bets the retrovisione burnt and keeps the others; a match goes
       // only when every bet it had is gone. scripts/formula.py --clean is stricter: one
       // burnt bet there drops the whole match.
+      // The listing's own lookback is only the default: the reader may change it.
+      const listing = { ...formula.listing, lookback: formula.lookback };
       const matches = scanListing(
-        draws, formula.listing, since, formula.colpi, formula.play,
+        draws, listing, since, formula.colpi, formula.play,
       ).filter((match) => !formula.isotopicOnly || match.isotopic).flatMap((match) => {
         if (!formula.cleanOnly) return [match];
         const all = Object.values(match.bets).flat();
@@ -1442,7 +1444,7 @@ function renderFormule() {
             [name, bets.filter((bet) => bet.clean)])),
         }];
       });
-      out.replaceChildren(formulaResults(draws, formula.listing, matches));
+      out.replaceChildren(formulaResults(draws, listing, matches));
     } catch (error) {
       status.textContent = `Impossibile caricare le estrazioni (${error.message}).`;
     }
@@ -1456,6 +1458,9 @@ function renderFormule() {
       if (!file.files[0]) return;
       try {
         formula.listing = readListing(JSON.parse(await file.files[0].text()));
+        formula.lookback = formula.listing.lookback;
+        lookback.value = formula.lookback;
+        lookback.disabled = false;
       } catch (error) {
         formula.listing = null;
         out.replaceChildren();
@@ -1472,6 +1477,22 @@ function renderFormule() {
     value: id, selected: id === formula.period, text: label,
   })));
 
+  const lookback = el('input', {
+    type: 'number',
+    id: 'formula-lookback',
+    min: 0,
+    max: 500,
+    value: formula.lookback ?? '',
+    disabled: !formula.listing,
+    onchange: () => {
+      const typed = Math.round(Number(lookback.value));
+      formula.lookback = lookback.value !== '' && typed >= 0
+        ? Math.min(500, typed)
+        : formula.listing.lookback;
+      lookback.value = formula.lookback;
+      run();
+    },
+  });
   const colpi = el('input', {
     type: 'number',
     id: 'formula-colpi',
@@ -1522,6 +1543,7 @@ function renderFormule() {
           field('listing', 'File JSON', file)),
         group('Riscontri',
           field('formula-period', 'Estrazioni', period),
+          field('formula-lookback', 'Retrovisione', lookback),
           el('div', { class: 'checks' },
             toggle('cleanOnly', 'Nascondi le giocate sporche'),
             toggle('isotopicOnly', 'Solo isotopi'))),

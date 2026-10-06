@@ -269,7 +269,7 @@ numbers landed, and the retrovisione has nothing to check.
 | `--listing FILE` | a listing to run: `.frm`, or the JSON form below |
 | `-s/--search` | one formula written inline, `"14 1 62 # 43 19 # 27"` (commas work) |
 | `-w/--wheels Y` | stands in for `SearchDrm` with `--search` (default 2) |
-| `-z/--lookback Z` | stands in for `Rear` with `--search` (default 9) |
+| `-z/--lookback Z` | draws the retrovisione reaches back (default: the listing's `Rear`, 9 with `--search`) |
 | `--scope` | `strict` / `medium` / `loose` — wheels the retrovisione searches |
 | `--clean` | keep only matches the retrovisione left untouched |
 | `--colpi N` | also say how each bet fared over the N draws after its match |
