@@ -137,10 +137,25 @@ header h1 {
 }
 
 .latest-grid {
+  clear: both;
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
   gap: 8px 18px;
 }
+
+/* One wheel per row, whatever the width. */
+.latest-grid.column { grid-template-columns: 1fr; }
+
+#latest-layout {
+  float: right;
+  display: flex;
+  margin-bottom: 14px;
+  padding: 5px;
+}
+
+/* The icon shows the layout the button switches to. */
+#latest-layout[aria-pressed="false"] .as-grid,
+#latest-layout[aria-pressed="true"] .as-column { display: none; }
 
 .latest-row {
   display: flex;

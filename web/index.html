@@ -19,6 +19,15 @@
     <p class="sub" id="sub">Caricamento…</p>
 
     <section class="latest" id="latest" hidden>
+      <button type="button" id="latest-layout" aria-pressed="false"
+        title="Una ruota per riga" aria-label="Una ruota per riga">
+        <svg class="as-column" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true">
+          <path d="M2 4h12M2 8h12M2 12h12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+        </svg>
+        <svg class="as-grid" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true">
+          <path d="M2.5 2.5h4v4h-4zM9.5 2.5h4v4h-4zM2.5 9.5h4v4h-4zM9.5 9.5h4v4h-4z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+        </svg>
+      </button>
       <h2 id="latest-title">Ultima estrazione</h2>
       <div class="latest-grid" id="latest-grid"></div>
     </section>

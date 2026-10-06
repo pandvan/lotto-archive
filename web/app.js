@@ -1637,6 +1637,13 @@ function renderHeader() {
     ...Object.entries(meta.latest.wheels).map(([wheel, numbers]) => el('div', { class: 'latest-row' },
       el('span', { class: 'wheel', text: wheelName(wheel) }),
       numbers.map((n) => el('span', { class: 'ball', text: String(n) })))));
+  const layout = document.getElementById('latest-layout');
+  layout.onclick = () => {
+    const column = document.getElementById('latest-grid').classList.toggle('column');
+    layout.setAttribute('aria-pressed', String(column));
+    layout.title = column ? 'Ruote affiancate' : 'Una ruota per riga';
+    layout.setAttribute('aria-label', layout.title);
+  };
   latest.hidden = false;
 
   document.getElementById('footer-meta').textContent =
