@@ -523,7 +523,7 @@ const tile = (key, value, note) => el('div', { class: 'tile' },
 
 const state = {
   meta: null,
-  wheel: 'napoli',
+  wheel: 'tutte',
   period: 'all',
   tab: DEFAULT_TAB,
   spy: 1,
@@ -531,7 +531,8 @@ const state = {
   draws: null,
   grid: null,
   formula: {
-    listing: null, lookback: null, period: '1', cleanOnly: false, isotopicOnly: false, wonOnly: false,
+    listing: null, lookback: null, wheels: null, period: '1', cleanOnly: false, isotopicOnly: false, wonOnly: false,
+    dirty: false,
     colpi: 20, play: 'match', kind: 'all', view: 'matches',
   },
 };
@@ -1430,10 +1431,10 @@ function renderFormule() {
       // "Clean" drops the bets the retrovisione burnt and keeps the others; a match goes
       // only when every bet it had is gone. scripts/formula.py --clean is stricter: one
       // burnt bet there drops the whole match.
-      // The listing's own lookback is only the default: the reader may change it.
-      const listing = { ...formula.listing, lookback: formula.lookback };
+      // The listing's own lookback and wheels are only defaults: the reader may change them.
+      const listing = { ...formula.listing, lookback: formula.lookback, wheels: formula.wheels };
       const matches = scanListing(
-        draws, listing, since, formula.colpi, formula.play,
+        draws, listing, since, formula.colpi, formula.play, formula.dirty,
       ).filter((match) => !formula.isotopicOnly || match.isotopic).flatMap((match) => {
         if (!formula.cleanOnly) return [match];
         const all = Object.values(match.bets).flat();
@@ -1461,6 +1462,8 @@ function renderFormule() {
         formula.lookback = formula.listing.lookback;
         lookback.value = formula.lookback;
         lookback.disabled = false;
+        formula.wheels = formula.listing.wheels;
+        setUpWheels();
       } catch (error) {
         formula.listing = null;
         out.replaceChildren();
@@ -1493,6 +1496,29 @@ function renderFormule() {
       run();
     },
   });
+  // A wheel draws five numbers, and each search number needs at most a wheel of its own.
+  const wheelBounds = () => [
+    Math.ceil(formula.listing.size / 5),
+    Math.min(formula.listing.size, 11),
+  ];
+  const wheels = el('input', {
+    type: 'number',
+    id: 'formula-wheels',
+    disabled: true,
+    onchange: () => {
+      const [low, high] = wheelBounds();
+      const typed = Math.round(Number(wheels.value));
+      formula.wheels = wheels.value !== '' ? Math.min(high, Math.max(low, typed)) : formula.listing.wheels;
+      wheels.value = formula.wheels;
+      run();
+    },
+  });
+  const setUpWheels = () => {
+    [wheels.min, wheels.max] = wheelBounds();
+    wheels.value = formula.wheels;
+    wheels.disabled = false;
+  };
+  if (formula.listing) setUpWheels();
   const colpi = el('input', {
     type: 'number',
     id: 'formula-colpi',
@@ -1543,10 +1569,12 @@ function renderFormule() {
           field('listing', 'File JSON', file)),
         group('Riscontri',
           field('formula-period', 'Estrazioni', period),
+          field('formula-wheels', 'Ruote di ricerca', wheels),
           field('formula-lookback', 'Retrovisione', lookback),
           el('div', { class: 'checks' },
             toggle('cleanOnly', 'Nascondi le giocate sporche'),
-            toggle('isotopicOnly', 'Solo isotopi'))),
+            toggle('isotopicOnly', 'Solo isotopi'),
+            toggle('dirty', 'Consenti numeri di ricerca su più ruote'))),
         group('Esito delle giocate',
           field('formula-colpi', 'Colpi', colpi),
           field('formula-play', 'Cercato su', choice('formula-play', 'play', LABELS.plays)),

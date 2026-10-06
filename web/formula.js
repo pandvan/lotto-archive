@@ -143,9 +143,10 @@ function outcomeOf(draws, index, numbers, play, colpi, on) {
  * With `colpi`, every bet also carries its outcome over that many draws after the match.
  *
  * A formula matches a draw when each of its search numbers came out on exactly one
- * wheel and those wheels number `listing.wheels`.
+ * wheel and those wheels number `listing.wheels`. With `dirty`, a search number may be
+ * on several wheels, and every wheel holding one is a wheel of the match.
  */
-function scanListing(draws, listing, since = null, colpi = 0, on = 'match') {
+function scanListing(draws, listing, since = null, colpi = 0, on = 'match', dirty = false) {
   const out = [];
   draws.forEach((draw, index) => {
     if (index < listing.lookback || (since && draw.date < since)) return;
@@ -161,13 +162,13 @@ function scanListing(draws, listing, since = null, colpi = 0, on = 'match') {
 
     for (const formula of listing.formulas) {
       const wheelsOf = formula.numbers.map((number) => holders.get(number) ?? []);
-      if (wheelsOf.some((wheels) => wheels.length !== 1)) continue;
-      const wheels = WHEEL_ORDER.filter((wheel) => wheelsOf.some((held) => held[0] === wheel));
+      if (wheelsOf.some((wheels) => (dirty ? !wheels.length : wheels.length !== 1))) continue;
+      const wheels = WHEEL_ORDER.filter((wheel) => wheelsOf.some((held) => held.includes(wheel)));
       if (wheels.length !== listing.wheels) continue;
 
       const found = Object.fromEntries(wheels.map((wheel) => [
         wheel,
-        formula.numbers.filter((_, i) => wheelsOf[i][0] === wheel),
+        formula.numbers.filter((_, i) => wheelsOf[i].includes(wheel)),
       ]));
       // The loose isotopia of lotto-convergence: any two search numbers in the same
       // position on two wheels, not only the same number.

@@ -18,13 +18,15 @@ RUNNER = """
 const { readListing, scanListing } = require(process.argv[1]);
 const input = JSON.parse(require('fs').readFileSync(0, 'utf8'));
 console.log(JSON.stringify(scanListing(
-  input.draws, readListing(input.listing), input.since, input.colpi, input.play)));
+  input.draws, readListing(input.listing), input.since, input.colpi, input.play,
+  input.dirty)));
 """
 
 
 @pytest.mark.skipif(NODE is None, reason="node is not installed")
 @pytest.mark.parametrize("play", listing.PLAYS)
-def test_the_js_port_finds_what_the_python_finds(play):
+@pytest.mark.parametrize("dirty", [False, True])
+def test_the_js_port_finds_what_the_python_finds(play, dirty):
     rng = random.Random(0)
     start = datetime.date(2026, 1, 1)
     draws = {
@@ -55,11 +57,16 @@ def test_the_js_port_finds_what_the_python_finds(play):
     expected = [
         {"date": iso(report.date), **match.as_dict()}
         for report in listing.scan(
-            draws, listing.from_json(payload), since=since, colpi=5, play=play
+            draws, listing.from_json(payload), since=since, colpi=5, play=play, dirty=dirty
         )
         for match in report.matches
     ]
     # The sample has to exercise every branch, or agreeing on it proves nothing.
+    assert dirty == any(
+        len({n for numbers in match["found"].values() for n in numbers})
+        < sum(map(len, match["found"].values()))
+        for match in expected
+    )
     assert any(match["isotopic"] for match in expected)
     assert any(not match["isotopic"] for match in expected)
     bets = [bet for match in expected for kind in match["bets"].values() for bet in kind]
@@ -77,6 +84,7 @@ def test_the_js_port_finds_what_the_python_finds(play):
                 "since": iso(since),
                 "colpi": 5,
                 "play": play,
+                "dirty": dirty,
             }
         ),
         capture_output=True,
