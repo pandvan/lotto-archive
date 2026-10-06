@@ -233,7 +233,8 @@ How a formula is applied:
 
 1. **Found** — every *numero di ricerca* must have come out on **exactly one** wheel: a
    number on two wheels makes the play *sporca* and drops the formula. Those wheels must
-   number exactly `SearchDrm`.
+   number exactly `SearchDrm`. `--dirty` keeps the *sporca* formula: every wheel holding
+   a search number then counts towards `SearchDrm`.
 2. **Isotopia** — reported when two of the matching wheels hold a search number in the
    same extraction position. It is recorded, not required.
 3. **Retrovisione** — each bet is checked against the `Rear` preceding draws. A bet
@@ -268,7 +269,7 @@ numbers landed, and the retrovisione has nothing to check.
 |---|---|
 | `--listing FILE` | a listing to run: `.frm`, or the JSON form below |
 | `-s/--search` | one formula written inline, `"14 1 62 # 43 19 # 27"` (commas work) |
-| `-w/--wheels Y` | stands in for `SearchDrm` with `--search` (default 2) |
+| `-w/--wheels Y` | wheels the search numbers must be spread over, from 1 (2 past five numbers, and so on) to one per number, 11 at most (default: the listing's `SearchDrm`, 2 with `--search`) |
 | `-z/--lookback Z` | draws the retrovisione reaches back (default: the listing's `Rear`, 9 with `--search`) |
 | `--scope` | `strict` / `medium` / `loose` — wheels the retrovisione searches |
 | `--clean` | keep only matches the retrovisione left untouched |

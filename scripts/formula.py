@@ -44,6 +44,7 @@ from lotto.listing import (
     one_formula,
     read,
     scan,
+    wheel_bounds,
 )
 from lotto.model import LottoError, contest_numbers, iso
 
@@ -77,9 +78,11 @@ def parse_args() -> argparse.Namespace:
         "-w",
         "--wheels",
         type=int,
-        default=DEFAULT_WHEELS,
+        default=None,
         metavar="Y",
-        help=f"wheels the numbers must be spread over, with --search (default: {DEFAULT_WHEELS})",
+        help="wheels the numbers must be spread over, from 1 (as many as five numbers "
+        "need) to one per number (default: what the listing declares, "
+        f"{DEFAULT_WHEELS} with --search)",
     )
     parser.add_argument(
         "-z",
@@ -104,6 +107,13 @@ def parse_args() -> argparse.Namespace:
         help="keep only matches the retrovisione left untouched — every bet still "
         "playable, none already out on the matching wheels. A formula that plays no "
         "bets has nothing to burn and is kept",
+    )
+    parser.add_argument(
+        "--dirty",
+        action="store_true",
+        help="also match a formula one of whose search numbers came out on more than "
+        "one wheel — a giocata sporca, dropped by default. Every wheel holding a "
+        "search number then counts towards --wheels",
     )
     parser.add_argument(
         "--colpi",
@@ -222,13 +232,20 @@ def listing_from(args) -> Listing:
     """The listing the flags name: a file, or one formula typed out."""
     if args.listing:
         listing = read(args.listing)
-        # The listing's own lookback is a default: --lookback overrides it.
-        if args.lookback is None:
-            return listing
-        return dataclasses.replace(listing, lookback=args.lookback)
-    line = " ".join(args.search).replace(",", " ")
-    lookback = DEFAULT_LOOKBACK if args.lookback is None else args.lookback
-    return one_formula(line, wheel_count=args.wheels, lookback=lookback)
+    else:
+        line = " ".join(args.search).replace(",", " ")
+        listing = one_formula(line, wheel_count=DEFAULT_WHEELS, lookback=DEFAULT_LOOKBACK)
+    # The listing's own header is a default: --wheels and --lookback override it.
+    if args.wheels is not None:
+        low, high = wheel_bounds(listing.size)
+        if not low <= args.wheels <= high:
+            raise LottoError(
+                f"--wheels must be {low}-{high} for {listing.size} search numbers"
+            )
+        listing = dataclasses.replace(listing, wheel_count=args.wheels)
+    if args.lookback is not None:
+        listing = dataclasses.replace(listing, lookback=args.lookback)
+    return listing
 
 
 def run(args, draws, contests) -> int:
@@ -243,6 +260,7 @@ def run(args, draws, contests) -> int:
             scope=args.scope,
             colpi=args.colpi,
             play=args.play,
+            dirty=args.dirty,
         )
     else:
         reports = [
@@ -254,6 +272,7 @@ def run(args, draws, contests) -> int:
                 scope=args.scope,
                 colpi=args.colpi,
                 play=args.play,
+                dirty=args.dirty,
             )
         ]
 
@@ -268,6 +287,7 @@ def run(args, draws, contests) -> int:
         f"{len(listing.formulas)} formula{'s' if len(listing.formulas) != 1 else ''}"
         + f", {args.scope} retrovisione"
         + (", clean only" if args.clean else "")
+        + (", dirty plays too" if args.dirty else "")
     )
     print()
     for report in reports:

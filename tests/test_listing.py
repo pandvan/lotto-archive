@@ -101,6 +101,19 @@ def test_a_search_number_on_two_wheels_makes_the_play_dirty(tmp_path):
         QUIET, QUIET, {"bari": [71, 1, 2, 3, 4], "roma": [81, 71, 5, 6, 7]}
     )
     assert not listing.apply(draws, day(3), one_formula(tmp_path)).satisfied
+    # Asked for, the dirty play matches, and both wheels report the repeated number.
+    match, = listing.apply(draws, day(3), one_formula(tmp_path), dirty=True).matches
+    assert match.found == {"bari": (71,), "roma": (71, 81)}
+    # The wheels must still number what the listing declares.
+    wide = archive(QUIET, QUIET, {**draws[day(3)], "milano": [71, 11, 12, 13, 14]})
+    assert not listing.apply(wide, day(3), one_formula(tmp_path), dirty=True).satisfied
+
+
+def test_wheel_bounds_follow_how_many_numbers_are_searched():
+    assert listing.wheel_bounds(2) == (1, 2)
+    assert listing.wheel_bounds(5) == (1, 5)
+    assert listing.wheel_bounds(6) == (2, 6)
+    assert listing.wheel_bounds(14) == (3, 11)
 
 
 def test_a_search_number_that_did_not_come_out_is_not_a_match(tmp_path):
@@ -259,10 +272,17 @@ def test_the_lookback_flag_overrides_the_listing(tmp_path):
     path.write_text(
         json.dumps(listing.one_formula("71 81", wheel_count=2, lookback=4).as_dict())
     )
-    args = argparse.Namespace(listing=path, lookback=None)
+    args = argparse.Namespace(listing=path, lookback=None, wheels=None)
     assert formula.listing_from(args).lookback == 4
     args.lookback = 7
     assert formula.listing_from(args).lookback == 7
+    # --wheels does the same for the wheel count, within what the numbers allow.
+    assert formula.listing_from(args).wheel_count == 2
+    args.wheels = 1
+    assert formula.listing_from(args).wheel_count == 1
+    args.wheels = 3
+    with pytest.raises(LottoError):
+        formula.listing_from(args)
 
 
 # --------------------------------------------------------------------- the json

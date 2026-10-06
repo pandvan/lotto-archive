@@ -22,7 +22,9 @@ A formula matches a draw when every one of its search numbers came out on **exac
 one** wheel -- a number on two wheels makes the play *sporca* and drops the formula --
 and those wheels number exactly ``SearchDrm``. The bets of a matching formula are then
 each checked against the ``Rear`` draws before it: a bet any of whose numbers already
-came out there is reported as rejected. How many wheels that check searches is the
+came out there is reported as rejected. Asking for *dirty* matches keeps the formula a
+repeated number would drop: its wheels are then every wheel that produced a search
+number, and they must still number ``SearchDrm``. How many wheels that check searches is the
 *scope* -- :data:`SCOPES`; the original searches the matching wheels.
 
 Both the numbers and the bets are written down in advance; the archive only says
@@ -284,6 +286,8 @@ class ListingReport:
     clean_only: bool = False
     #: Which wheels the retrovisione searched -- see :data:`SCOPES`.
     scope: str = DEFAULT_SCOPE
+    #: Formulas with a search number on more than one wheel were matched too.
+    dirty: bool = False
 
     @property
     def satisfied(self) -> bool:
@@ -304,6 +308,7 @@ class ListingReport:
             "short_history": self.short_history,
             "clean_only": self.clean_only,
             "scope": self.scope,
+            "dirty": self.dirty,
             "satisfied": self.satisfied,
             "matches": [match.as_dict() for match in self.matches],
         }
@@ -367,6 +372,15 @@ def _numbers(text: str, where: str) -> tuple[int, ...]:
     if not out:
         raise LottoError(f"{where}: empty group")
     return tuple(out)
+
+
+def wheel_bounds(size: int) -> tuple[int, int]:
+    """The fewest and the most wheels ``size`` search numbers can be asked on.
+
+    A wheel draws five numbers, so it holds at most five of them; and each number needs
+    no more than a wheel of its own, of the eleven there are.
+    """
+    return -(-size // 5), min(size, len(WHEELS))
 
 
 def formula_from_line(line: str, *, index: int = 1, where: str = "formula") -> Formula:
@@ -563,6 +577,7 @@ def apply(
     scope: str = DEFAULT_SCOPE,
     colpi: int = 0,
     play: str = DEFAULT_PLAY,
+    dirty: bool = False,
 ) -> ListingReport:
     """Run every formula of ``listing`` against the draw of ``date``.
 
@@ -573,6 +588,9 @@ def apply(
     With ``colpi``, every bet also carries its :class:`Outcome` over that many draws
     after ``date``, looked for on the ``play`` wheels -- see :data:`PLAYS`. A burnt bet
     gets one too: what to do with it is the reader's call.
+
+    ``dirty`` also matches a formula one of whose search numbers came out on more than
+    one wheel. Every wheel holding a search number is then a wheel of the match.
     """
     dates = sorted(draws)
     try:
@@ -585,7 +603,8 @@ def apply(
     if scope not in SCOPES:
         raise LottoError(f"unknown scope {scope!r}, expected one of {', '.join(SCOPES)}")
     report = ListingReport(
-        date=date, listing=listing, history=index, clean_only=clean_only, scope=scope
+        date=date, listing=listing, history=index, clean_only=clean_only, scope=scope,
+        dirty=dirty,
     )
     if index < listing.lookback:
         return report
@@ -593,12 +612,13 @@ def apply(
     matches: list[Match] = []
     for formula in listing.formulas:
         # A search number on two wheels makes the play dirty, and one that did not come
-        # out at all ends it: either way the formula does not match this draw.
+        # out at all ends it: either way the formula does not match this draw, unless
+        # dirty plays were asked for.
         wheels_of = [holders.get(number, ()) for number in formula.numbers]
-        if any(len(wheels) != 1 for wheels in wheels_of):
+        if any(not wheels if dirty else len(wheels) != 1 for wheels in wheels_of):
             continue
         wheels = tuple(
-            sorted({wheels[0] for wheels in wheels_of}, key=WHEELS.index)
+            sorted({wheel for wheels in wheels_of for wheel in wheels}, key=WHEELS.index)
         )
         if len(wheels) != listing.wheel_count:
             continue
@@ -607,7 +627,7 @@ def apply(
             wheel: tuple(
                 number
                 for number, holder in zip(formula.numbers, wheels_of)
-                if holder[0] == wheel
+                if wheel in holder
             )
             for wheel in wheels
         }
@@ -642,6 +662,7 @@ def apply(
         matches=tuple(matches),
         clean_only=clean_only,
         scope=scope,
+        dirty=dirty,
     )
 
 
@@ -742,6 +763,7 @@ def scan(
     scope: str = DEFAULT_SCOPE,
     colpi: int = 0,
     play: str = DEFAULT_PLAY,
+    dirty: bool = False,
 ) -> list[ListingReport]:
     """Every draw of the range that at least one formula matched, oldest first.
 
@@ -756,6 +778,7 @@ def scan(
             apply(
                 draws, day, listing,
                 clean_only=clean_only, scope=scope, colpi=colpi, play=play,
+                dirty=dirty,
             ),
         )
         if report.satisfied
