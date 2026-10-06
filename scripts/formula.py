@@ -21,6 +21,7 @@ likely to come out.
 from __future__ import annotations
 
 import argparse
+import dataclasses
 import datetime
 import json
 import sys
@@ -69,7 +70,7 @@ def parse_args() -> argparse.Namespace:
         metavar="N",
         help="a single formula, written as a listing line: the numbers to look for, "
         "then a bet per '#' column — '-s \"14 1 62 # 43 19 # 27\"'. Commas work too, "
-        "and --wheels and --lookback stand in for the header",
+        "and --wheels stands in for the header",
     )
 
     parser.add_argument(
@@ -84,9 +85,10 @@ def parse_args() -> argparse.Namespace:
         "-z",
         "--lookback",
         type=int,
-        default=DEFAULT_LOOKBACK,
+        default=None,
         metavar="Z",
-        help=f"draws the retrovisione reaches back, with --search (default: {DEFAULT_LOOKBACK})",
+        help="draws the retrovisione reaches back (default: what the listing declares, "
+        f"{DEFAULT_LOOKBACK} with --search)",
     )
     parser.add_argument(
         "--scope",
@@ -143,7 +145,10 @@ def parse_args() -> argparse.Namespace:
         help="last draw of a --scan (default: the end of the archive)",
     )
     parser.add_argument("--json", action="store_true", help="emit the report as JSON")
-    return parser.parse_args()
+    args = parser.parse_args()
+    if args.lookback is not None and args.lookback < 0:
+        parser.error("--lookback cannot be negative")
+    return args
 
 
 # ------------------------------------------------------------------- formatting
@@ -216,9 +221,14 @@ def format_report(report: ListingReport, contest: int) -> list[str]:
 def listing_from(args) -> Listing:
     """The listing the flags name: a file, or one formula typed out."""
     if args.listing:
-        return read(args.listing)
+        listing = read(args.listing)
+        # The listing's own lookback is a default: --lookback overrides it.
+        if args.lookback is None:
+            return listing
+        return dataclasses.replace(listing, lookback=args.lookback)
     line = " ".join(args.search).replace(",", " ")
-    return one_formula(line, wheel_count=args.wheels, lookback=args.lookback)
+    lookback = DEFAULT_LOOKBACK if args.lookback is None else args.lookback
+    return one_formula(line, wheel_count=args.wheels, lookback=lookback)
 
 
 def run(args, draws, contests) -> int:
