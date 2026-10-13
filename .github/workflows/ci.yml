@@ -23,6 +23,6 @@ jobs:
       - name: Validate the committed archive
         run: python scripts/validate.py
       - name: Check the 10eLotto archive against the Lotto archive
-        run: python scripts/tenelotto.py --check
+        run: python scripts/diecielotto.py --check
       - name: Build the statistics site
         run: python scripts/build_site.py

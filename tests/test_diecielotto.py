@@ -6,10 +6,10 @@ import sys
 
 import pytest
 
-import tenelotto as cli
+import diecielotto as cli
 from lotto import archive
 from lotto.model import LottoError
-from lotto.tenelotto import FIELD_START, TIED_WHEELS, build, derive, render
+from lotto.diecielotto import FIELD_START, TIED_WHEELS, build, derive, render
 
 #: Lotto draw of 2026-10-10; the 10eLotto values below come from the official API.
 OCT_10 = datetime.date(2026, 10, 10)
@@ -99,7 +99,7 @@ def test_render_of_nothing_is_nothing():
 
 
 def run(monkeypatch, root, *argv):
-    monkeypatch.setattr(sys, "argv", ["tenelotto", "--root", str(root), *argv])
+    monkeypatch.setattr(sys, "argv", ["diecielotto", "--root", str(root), *argv])
     return cli.main()
 
 

@@ -37,7 +37,7 @@ jobs:
       - name: Derive
         id: derive
         continue-on-error: true
-        run: python scripts/tenelotto.py
+        run: python scripts/diecielotto.py
 
       - name: Commit
         run: |
