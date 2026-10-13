@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Build the static statistics site from the committed archive.
 
-Reads ``data/<year>.json``, computes every statistic in :mod:`lotto.stats`, and
+Reads ``data/lotto/<year>.json``, computes every statistic in :mod:`lotto.stats`, and
 writes a self-contained directory ready for GitHub Pages: the hand-written assets
 from ``web/`` copied verbatim, plus one JSON file of metadata and one per wheel
 under ``data/``, the tabellone grid of every wheel, and the raw draws for the page's formula tab, which runs an uploaded

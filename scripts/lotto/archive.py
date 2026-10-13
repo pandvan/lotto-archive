@@ -18,7 +18,7 @@ from .model import (
     order_wheels,
 )
 
-DATA_DIR = "data"
+DATA_DIR = "data/lotto"
 INDEX_FILE = "index.json"
 ALL_FILE = "all.json"
 ALL_MIN_FILE = "all.min.json"
@@ -80,7 +80,7 @@ def render_json_min(obj) -> str:
 
 
 def load(root: Path) -> DrawSet:
-    """Read every ``data/<year>.json`` back into a draw set."""
+    """Read every ``data/lotto/<year>.json`` back into a draw set."""
     draws: DrawSet = {}
     data_dir = root / DATA_DIR
     if not data_dir.is_dir():

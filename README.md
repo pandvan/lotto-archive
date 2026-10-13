@@ -11,12 +11,15 @@ by a GitHub Action.
 
 | Path | What it is |
 |---|---|
-| `data/<year>.json` | One file per calendar year — the source of truth |
-| `data/all.json` | Every draw in one file, indented |
-| `data/all.min.json` | Every draw in one file, minified |
-| `data/latest.json` | The most recent draw only |
+| `data/lotto/<year>.json` | One file per calendar year — the source of truth |
+| `data/lotto/all.json` | Every draw in one file, indented |
+| `data/lotto/all.min.json` | Every draw in one file, minified |
+| `data/lotto/latest.json` | The most recent draw only |
 | `index.json` | Coverage, per-year counts, and upstream source state |
 | `schema/` | JSON Schema for a draw, a year file, and a formula listing |
+
+The Lotto files moved from `data/` to `data/lotto/` in October 2026. Old URLs such as
+`data/latest.json` and `data/<year>.json` no longer resolve; insert `lotto/` after `data/`.
 
 ## Format
 
@@ -69,20 +72,20 @@ so derive the calendar from the data rather than assuming it.
 
 ```bash
 # The latest draw
-curl -s https://raw.githubusercontent.com/pandvan/lotto-archive/main/data/latest.json
+curl -s https://raw.githubusercontent.com/pandvan/lotto-archive/main/data/lotto/latest.json
 
 # Every Bari result in 2026
-jq '.draws[] | {date, bari: .wheels.bari}' data/2026.json
+jq '.draws[] | {date, bari: .wheels.bari}' data/lotto/2026.json
 
 # How often has 90 come out on Napoli since 2000?
 jq -s 'map(.draws[] | select(.wheels.napoli != null) | .wheels.napoli)
-       | flatten | map(select(. == 90)) | length' data/20*.json
+       | flatten | map(select(. == 90)) | length' data/lotto/20*.json
 ```
 
 ```python
 import json, pathlib
 
-draws = [d for p in sorted(pathlib.Path("data").glob("[0-9]" * 4 + ".json"))
+draws = [d for p in sorted(pathlib.Path("data/lotto").glob("[0-9]" * 4 + ".json"))
            for d in json.loads(p.read_text())["draws"]]
 print(len(draws), draws[-1]["date"])
 ```
@@ -133,7 +136,7 @@ the Italian Lotto. Its correctness ultimately depends on those upstream sources.
 A static site with the statistics people actually look for — ritardi, frequenze, ambi,
 cadenze, figure, decine, numeri spia — is generated from the same JSON and published to
 GitHub Pages. Nothing about it is committed: `scripts/build_site.py` rebuilds `site/`
-from `data/`, and `.github/workflows/pages.yml` republishes it whenever the archive
+from `data/lotto/`, and `.github/workflows/pages.yml` republishes it whenever the archive
 moves.
 
 ```bash
