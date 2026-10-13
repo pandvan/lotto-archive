@@ -75,7 +75,7 @@ def test_validate_tree_accepts_what_the_writer_produces(tmp_path):
 
 def test_validate_tree_catches_a_hand_edited_contest_number(tmp_path):
     archive.write(tmp_path, {DAY: full_wheels()}, generated_at="2026-09-30T00:00:00Z", sources={})
-    path = tmp_path / "data" / "2026.json"
+    path = tmp_path / "data" / "lotto" / "2026.json"
     payload = json.loads(path.read_text())
     payload["draws"][0]["contest"] = 99
     path.write_text(json.dumps(payload, indent=2))

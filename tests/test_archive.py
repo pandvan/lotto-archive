@@ -37,8 +37,8 @@ def test_write_then_load_round_trips(tmp_path):
 
 def test_contest_numbers_restart_each_year(tmp_path):
     write_sample(tmp_path, {D1: draw(1, 2, 3, 4, 5), D2: draw(6, 7, 8, 9, 10), D3: draw(11, 12, 13, 14, 15)})
-    year_2026 = json.loads((tmp_path / "data" / "2026.json").read_text())
-    year_2025 = json.loads((tmp_path / "data" / "2025.json").read_text())
+    year_2026 = json.loads((tmp_path / "data" / "lotto" / "2026.json").read_text())
+    year_2025 = json.loads((tmp_path / "data" / "lotto" / "2025.json").read_text())
     assert [d["contest"] for d in year_2026["draws"]] == [1, 2]
     assert [d["contest"] for d in year_2025["draws"]] == [1]
 
@@ -46,7 +46,7 @@ def test_contest_numbers_restart_each_year(tmp_path):
 def test_wheels_are_written_in_canonical_order(tmp_path):
     scrambled = {"nazionale": [1, 2, 3, 4, 5], "bari": [6, 7, 8, 9, 10], "milano": [11, 12, 13, 14, 15]}
     write_sample(tmp_path, {D1: scrambled})
-    payload = json.loads((tmp_path / "data" / "2026.json").read_text())
+    payload = json.loads((tmp_path / "data" / "lotto" / "2026.json").read_text())
     written = list(payload["draws"][0]["wheels"])
     assert written == [w for w in WHEELS if w in scrambled]
 

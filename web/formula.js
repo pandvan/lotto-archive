@@ -138,7 +138,7 @@ function outcomeOf(draws, index, numbers, play, colpi, on) {
 }
 
 /**
- * Every match of `listing` over `draws` (oldest first, as data/all.min.json holds them),
+ * Every match of `listing` over `draws` (oldest first, as data/lotto/all.min.json holds them),
  * from the ISO date `since` on. The retrovisione still reaches before `since`.
  * With `colpi`, every bet also carries its outcome over that many draws after the match.
  *
