@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Estrazioni del 10eLotto — archivio dal 2009</title>
+<meta name="description" content="Tutte le estrazioni serali del 10eLotto dall'11 giugno 2009: i 20 numeri, Numero Oro, Doppio Oro ed Extra. Dati aperti, aggiornati automaticamente.">
+<meta name="color-scheme" content="light dark">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="banner">
+  <div class="banner-in">
+    <div>
+      <a class="brand" href="index.html">Archivio del Lotto</a>
+      <p>Tutte le estrazioni dal 1939 · dati aperti, aggiornati a ogni concorso</p>
+    </div>
+    <nav class="games" aria-label="Giochi">
+      <a href="index.html">Lotto</a>
+      <a href="10elotto.html" aria-current="page">10eLotto</a>
+    </nav>
+  </div>
+</div>
+
+<div class="wrap">
+
+  <header>
+    <div class="top">
+      <h1>Estrazioni del 10eLotto</h1>
+      <button id="theme" type="button" title="Cambia tema" aria-label="Cambia tema">&#x25D0;</button>
+    </div>
+    <p class="sub" id="sub">Caricamento…</p>
+
+    <section class="latest" id="latest" hidden>
+      <h2 id="latest-title">Ultima estrazione</h2>
+      <div id="latest-draw"></div>
+    </section>
+  </header>
+
+  <div class="filters">
+    <div class="field">
+      <label for="year">Anno</label>
+      <select id="year"></select>
+    </div>
+    <div class="field">
+      <label for="contains">Contiene i numeri</label>
+      <input type="search" id="contains" inputmode="numeric" placeholder="es. 7 21 90" autocomplete="off">
+    </div>
+  </div>
+
+  <main id="view" aria-live="polite"></main>
+
+  <footer>
+    <p>L'estrazione serale del 10eLotto è ricavata da quella del Lotto della stessa data:
+      i primi due estratti di ogni ruota, poi i terzi, i quarti e i quinti, finché i numeri
+      diversi sono 20; i 15 successivi sono l'Extra.</p>
+    <p>Dati e codice: <a href="https://github.com/pandvan/lotto-archive">github.com/pandvan/lotto-archive</a>.
+      Archivio di dati di terze parti, senza alcun legame con i gestori del gioco.
+      Il 10eLotto è un gioco a probabilità fissa: si può perdere denaro. Vietato ai minori di 18 anni.</p>
+  </footer>
+
+</div>
+
+<script src="common.js"></script>
+<script src="10elotto.js"></script>
+</body>
+</html>

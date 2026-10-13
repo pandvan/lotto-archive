@@ -8,7 +8,7 @@ name: Publish the statistics site
 # is the trigger that does fire for it.
 on:
   workflow_run:
-    workflows: ['Update archive', 'Reconcile with fallback']
+    workflows: ['Update archive', 'Reconcile with fallback', 'Derive the 10eLotto archive']
     types: [completed]
   push:
     branches: [main]

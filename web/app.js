@@ -4,9 +4,9 @@
  * and no prose, so this file is the only place to change wording, and the only place
  * where the Italian lotto vocabulary (ritardo, ambo, cadenza, figura, decina) appears.
  *
- * The page has two sections. "Statistiche" is read-only: tabs of generated statistics.
- * "Formule" is the one view not built from them: it runs a listing the reader uploads
- * against the raw draws, with the rule in formula.js.
+ * The page has three sections. "Statistiche" is read-only: tabs of generated statistics.
+ * "Estrazioni" lists the raw draws, a year at a time. "Formule" runs a listing the
+ * reader uploads against the raw draws, with the rule in formula.js.
  *
  * No dependencies. Charts are inline SVG built by the helpers under "charts".
  */
@@ -62,16 +62,17 @@ const LABELS = {
       help: 'I nove gruppi di dieci, da 1-10 a 81-90.',
     },
   },
-  // The two halves of the page: statistics to read, and listings to run. `formulas` is
-  // also the id the address and state.tab use for the second one.
+  // The three parts of the page: draws to look up, statistics to read, and listings to
+  // run. `draws` and `formulas` are also the ids the address and state.tab use for them.
   sections: [
+    ['draws', 'Estrazioni', "Sfoglia l'archivio anno per anno e cerca i numeri usciti"],
     ['stats', 'Statistiche', 'Tabelle e grafici da consultare, ruota per ruota'],
     ['formulas', 'Formule', "Carica un listato e cercane i riscontri nell'archivio"],
   ],
   // Tab ids are what the address shows, so they are English like every other id; the
   // label beside each is what the reader sees.
   tabs: [
-    ['board', 'Tabellone'],
+    ['stats', 'Tabellone'],
     ['delays', 'Ritardi'],
     ['frequencies', 'Frequenze'],
     ['pairs', 'Ambi'],
@@ -101,25 +102,17 @@ const LABELS = {
   ],
 };
 
-const DEFAULT_TAB = 'board';
+// The opening tab of the statistics carries the section's own id in the address.
+const DEFAULT_TAB = 'stats';
 const NUMBERS = Array.from({ length: 90 }, (_, i) => i + 1);
 
 // ---------------------------------------------------------------- formatting
 
-const nf = new Intl.NumberFormat('it-IT');
 const nf1 = new Intl.NumberFormat('it-IT', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 const nf2 = new Intl.NumberFormat('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-const num = (v) => (v == null ? '—' : nf.format(v));
 const dec = (v) => (v == null ? '—' : nf1.format(v));
 const dec2 = (v) => (v == null ? '—' : nf2.format(v));
-
-/** ISO date to Italian day/month/year, without going through Date and its timezone. */
-function date(iso) {
-  if (!iso) return '—';
-  const [y, m, d] = iso.split('-');
-  return `${d}/${m}/${y}`;
-}
 
 function signed(v, digits = 0) {
   if (v == null) return '—';
@@ -128,23 +121,6 @@ function signed(v, digits = 0) {
   if (v < 0) return `−${formatted}`;
   return '0';
 }
-
-const el = (tag, attrs = {}, ...children) => {
-  const node = document.createElement(tag);
-  for (const [key, value] of Object.entries(attrs)) {
-    if (value == null || value === false) continue;
-    if (key === 'class') node.className = value;
-    else if (key === 'html') node.innerHTML = value;
-    else if (key === 'text') node.textContent = value;
-    else if (key.startsWith('on')) node.addEventListener(key.slice(2), value);
-    else node.setAttribute(key, value === true ? '' : value);
-  }
-  for (const child of children.flat()) {
-    if (child == null) continue;
-    node.append(child);
-  }
-  return node;
-};
 
 const svgEl = (tag, attrs = {}) => {
   const node = document.createElementNS('http://www.w3.org/2000/svg', tag);
@@ -527,6 +503,8 @@ const state = {
   period: 'all',
   tab: DEFAULT_TAB,
   spy: 1,
+  drawsYear: null,
+  contains: '',
   cache: new Map(),
   draws: null,
   grid: null,
@@ -998,6 +976,95 @@ function unavailable(clause) {
   return el('div', { class: 'card' }, el('p', { class: 'unavailable' },
     `«${wheelName(state.wheel)}» unisce i numeri di tutte le ruote di una data, quindi una ` +
     `voce dell'archivio non è una cinquina e ${clause}. Scegli una ruota singola.`));
+}
+
+// ----------------------------------------------------------------------- draws
+
+/**
+ * The draws of a year, newest first, on the chosen wheel or on all of them, kept when
+ * every number typed came out on the wheels shown.
+ */
+function renderEstrazioni() {
+  const shown = state.wheel === 'tutte'
+    ? state.meta.wheels.map((w) => w.id).filter((id) => id !== 'tutte')
+    : [state.wheel];
+  const out = el('div', {}, el('p', { class: 'help', text: 'Caricamento…' }));
+  let draws = null;
+
+  function fill() {
+    if (!draws) return;
+    const numbers = wanted(contains.value);
+    const found = draws.filter((draw) =>
+      (year.value === ALL_YEARS || draw.date.startsWith(year.value)) &&
+      shown.some((wheel) => draw.wheels[wheel]) &&
+      numbers.every((n) => shown.some((wheel) => draw.wheels[wheel]?.includes(n)))).reverse();
+    const title = `${num(found.length)} ${found.length === 1 ? 'estrazione' : 'estrazioni'}` +
+      (year.value === ALL_YEARS ? '' : ` del ${year.value}`) +
+      (numbers.length ? ` con ${numbers.join(', ')}` : '');
+    if (!found.length) {
+      out.replaceChildren(el('h3', { text: title }),
+        el('p', { class: 'unavailable', text: 'Nessuna estrazione corrisponde.' }));
+      return;
+    }
+    const lit = (wheel, n) => (shown.includes(wheel) && numbers.includes(n) ? 'hit' : null);
+    out.replaceChildren(
+      el('h3', { text: title }),
+      el('p', {
+        class: 'help',
+        text: 'Dalla più recente. Clicca una data per vedere l\'estrazione intera.' +
+          (found.length > MAX_ROWS ? ` Mostrate le prime ${MAX_ROWS}: scegli un anno o aggiungi un numero.` : ''),
+      }),
+      el('div', { class: 'scroll' }, el('table', { class: 'archive' },
+        el('thead', {}, el('tr', {}, ['Data', 'Concorso', ...shown.map(wheelName)]
+          .map((label) => el('th', { scope: 'col', text: label })))),
+        el('tbody', {}, found.slice(0, MAX_ROWS).map((draw) => el('tr', {},
+          el('td', {}, el('button', {
+            type: 'button',
+            class: 'link',
+            title: 'Mostra l\'estrazione',
+            text: date(draw.date),
+            onclick: () => showDraw(draw, lit,
+              numbers.length ? `Evidenziati: ${numbers.join(', ')}.` : 'Tutte le ruote dell\'estrazione.'),
+          })),
+          el('td', { class: 'dim', text: String(draw.contest) }),
+          shown.map((wheel) => el('td', {}, draw.wheels[wheel]
+            ? draw.wheels[wheel].map((n) => el('span', { class: lit(wheel, n) ? 'ball hit' : 'ball', text: String(n) }))
+            : '—'))))))));
+  }
+
+  const year = el('select', {
+    id: 'draws-year', onchange: () => { state.drawsYear = year.value; fill(); },
+  });
+  const contains = el('input', {
+    type: 'search',
+    id: 'draws-contains',
+    inputmode: 'numeric',
+    placeholder: 'es. 7 21 90',
+    autocomplete: 'off',
+    value: state.contains,
+    oninput: () => { state.contains = contains.value; fill(); },
+  });
+
+  allDraws().then((all) => {
+    draws = all;
+    const years = [...new Set(draws.map((draw) => draw.date.slice(0, 4)))].reverse();
+    state.drawsYear ??= years[0];
+    year.replaceChildren(
+      ...[...years.map((y) => [y, y]), [ALL_YEARS, 'Tutti gli anni']].map(([value, text]) =>
+        el('option', { value, text, selected: value === state.drawsYear })));
+    fill();
+  }).catch((error) => out.replaceChildren(el('p', {
+    class: 'help', text: `Impossibile caricare le estrazioni (${error.message}).`,
+  })));
+
+  return card(`Estrazioni · ${wheelName(state.wheel)}`,
+    'Tutte le estrazioni dell\'archivio, un anno alla volta, con i numeri nell\'ordine di ' +
+    'estrazione. Il filtro tiene le estrazioni in cui <strong>tutti</strong> i numeri scritti ' +
+    'sono usciti sulle ruote mostrate, anche su ruote diverse.',
+    el('div', { class: 'groups' },
+      el('div', { class: 'field' }, el('label', { for: 'draws-year', text: 'Anno' }), year),
+      el('div', { class: 'field' }, el('label', { for: 'draws-contains', text: 'Contiene i numeri' }), contains)),
+    out);
 }
 
 // -------------------------------------------------------------------- formulas
@@ -1586,7 +1653,8 @@ function renderFormule() {
 }
 
 const RENDERERS = {
-  board: renderTabellone,
+  stats: renderTabellone,
+  draws: renderEstrazioni,
   delays: renderRitardi,
   frequencies: renderFrequenze,
   pairs: renderAmbi,
@@ -1601,16 +1669,19 @@ const RENDERERS = {
 
 const view = document.getElementById('view');
 
-// The statistics tab to come back to from the formulas section.
+// The statistics tab to come back to from the other sections.
 let statsTab = DEFAULT_TAB;
 
+/** The section a tab belongs to: its own when it is one, the statistics otherwise. */
+const sectionFor = (tab) => (['draws', 'formulas'].includes(tab) ? tab : 'stats');
+
 function renderSections() {
-  const current = state.tab === 'formulas' ? 'formulas' : 'stats';
+  const current = sectionFor(state.tab);
   document.getElementById('sections').replaceChildren(
     ...LABELS.sections.map(([id, label, about]) => el('button', {
       type: 'button',
       'aria-current': id === current ? 'page' : null,
-      onclick: () => { state.tab = id === 'formulas' ? id : statsTab; syncHash(); render(); },
+      onclick: () => { state.tab = id === 'stats' ? statsTab : id; syncHash(); render(); },
     }, el('b', { text: label }), el('span', { text: about }))));
 }
 
@@ -1662,17 +1733,20 @@ async function render() {
   renders += 1;
   const mine = renders;
   const formulas = state.tab === 'formulas';
-  if (!formulas) statsTab = state.tab;
+  const stats = sectionFor(state.tab) === 'stats';
+  if (stats) statsTab = state.tab;
   renderSections();
   renderTabs();
-  // The formulas section has none of the statistics' chrome: no tabs, no reading note.
-  document.getElementById('tabs').hidden = formulas;
-  document.getElementById('notice').hidden = formulas;
+  // The other sections have none of the statistics' chrome: no tabs, no reading note.
+  document.getElementById('tabs').hidden = !stats;
+  document.getElementById('notice').hidden = !stats;
   // A listing is run over every wheel and its own period, so the two filters say nothing.
   // Everywhere else they show the state, which the address can change behind them.
   document.getElementById('filters').hidden = formulas;
   document.getElementById('wheel').value = state.wheel;
   document.getElementById('period').value = state.period;
+  // The draws section has its own year; the statistics' period says nothing there.
+  document.getElementById('period').parentElement.hidden = state.tab === 'draws';
   let data = null;
   try {
     if (state.tab !== 'formulas') data = await wheelData(state.wheel);
@@ -1704,7 +1778,9 @@ function syncHash() {
 }
 
 function readHash() {
-  const [, tab, ...rest] = (location.hash.slice(1) || '').split('/');
+  const [, inHash, ...rest] = (location.hash.slice(1) || '').split('/');
+  // `board` is what the opening tab was called: addresses saved then still open it.
+  const tab = inHash === 'board' ? DEFAULT_TAB : inHash;
   if (!Object.hasOwn(RENDERERS, tab)) return;
   state.tab = tab;
   if (tab === 'formulas') {
@@ -1744,36 +1820,6 @@ function setUpFilters() {
     syncHash();
     render();
   });
-}
-
-function setUpTheme() {
-  const button = document.getElementById('theme');
-  const names = { auto: 'automatico', light: 'chiaro', dark: 'scuro' };
-  // U+FE0E keeps the sun a plain glyph in the text colour, not a colour emoji.
-  const icons = { auto: '\u25D0', light: '\u2600\uFE0E', dark: '\u263E' };
-  const order = ['auto', 'light', 'dark'];
-  let current = 'auto';
-  try {
-    current = localStorage.getItem('theme') ?? 'auto';
-  } catch { /* private mode: stay on auto */ }
-  if (!order.includes(current)) current = 'auto';
-
-  const apply = () => {
-    if (current === 'auto') document.documentElement.removeAttribute('data-theme');
-    else document.documentElement.setAttribute('data-theme', current);
-    button.textContent = icons[current];
-    // The icon shows the theme in use; the label says it and what a click does.
-    button.title = `Tema ${names[current]}: clicca per cambiare`;
-    button.setAttribute('aria-label', button.title);
-  };
-  button.addEventListener('click', () => {
-    current = order[(order.indexOf(current) + 1) % order.length];
-    try {
-      localStorage.setItem('theme', current);
-    } catch { /* nothing to do */ }
-    apply();
-  });
-  apply();
 }
 
 async function main() {

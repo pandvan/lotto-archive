@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="320" height="200" viewBox="0 0 320 200">
+  <!-- The banner's tile: a few drawn balls, faint enough to sit behind the site name. -->
+  <g fill="none" stroke="#fff" stroke-opacity="0.09" stroke-width="1.5">
+    <circle cx="44" cy="46" r="26"/>
+    <circle cx="150" cy="118" r="34"/>
+    <circle cx="262" cy="52" r="20"/>
+    <circle cx="238" cy="166" r="16"/>
+    <circle cx="52" cy="156" r="14"/>
+  </g>
+  <g fill="#fff" fill-opacity="0.09" font-family="system-ui, sans-serif" font-weight="600" text-anchor="middle">
+    <text x="44" y="55" font-size="26">7</text>
+    <text x="150" y="131" font-size="36">90</text>
+    <text x="262" y="59" font-size="20">45</text>
+    <text x="238" y="171" font-size="15">18</text>
+    <text x="52" y="161" font-size="13">63</text>
+  </g>
+</svg>
