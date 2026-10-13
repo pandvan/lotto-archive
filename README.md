@@ -50,6 +50,17 @@ The Lotto files moved from `data/` to `data/lotto/` in October 2026. Old URLs su
 - **`wheels`** — the five numbers drawn on each wheel, **in extraction order** (first to
   fifth). Each is an integer from 1 to 90, and the five within a wheel are always distinct.
 
+### Contest numbers in 2020
+
+No draw was held from 2020-03-24 to 2020-05-02, eighteen draws in all. The archive keeps
+counting from where it stopped: 2020-03-21 is contest 35, 2020-05-05 is contest 36, and
+the year ends at 139. The fallback source says the same.
+
+Some published archives count the cancelled draws as well, and give 54 for 2020-05-05 and
+157 for 2020-12-31. No official record has been found to settle it, so for the 104 draws
+from 2020-05-05 to 2020-12-31 treat `contest` as unconfirmed; add 18 to get the other
+numbering. Dates and numbers are not affected. The same holds for `data/10elotto/`.
+
 ### Wheels
 
 `bari`, `cagliari`, `firenze`, `genova`, `milano`, `napoli`, `palermo`, `roma`, `torino`,
