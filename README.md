@@ -106,6 +106,8 @@ A key is **absent**, not `null`, before the date its option started.
 
 The rule was checked against the regulator's published results (adm.gov.it) for every
 draw from 2024-01-02 to 2026-10-03: 576 of 576 equal.
+`scripts/check_10elotto.py` repeats that check for one draw, the latest by default, or
+`--year 2024 --contest 208`. It only reports; the archive keeps the derived value.
 
 `scripts/tenelotto.py` writes the files from `data/lotto/`, with no network access;
 `--check` only compares. `.github/workflows/tenelotto.yml` runs it after every archive
@@ -400,6 +402,7 @@ python -m venv .venv && .venv/bin/pip install -r requirements-dev.txt
 | `scripts/reconcile.py` | Cross-check against the fallback |
 | `scripts/validate.py` | Validate the committed archive |
 | `scripts/tenelotto.py` | Derive `data/10elotto/` from `data/lotto/`; `--check` only compares |
+| `scripts/check_10elotto.py` | Compare one derived 10eLotto draw with the regulator's page |
 | `scripts/build_site.py` | Build the static statistics site into `site/` |
 | `scripts/formula.py` | Run the lookup formula, or a listing, over one draw or a range |
 | `scripts/convert_formulas.py` | Convert `.frm` listings into the JSON formula format |

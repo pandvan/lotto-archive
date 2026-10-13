@@ -7,6 +7,7 @@ a pure function of what the ten city wheels (and, rarely, Nazionale) drew.
 from __future__ import annotations
 
 import datetime
+import re
 
 from .archive import ALL_FILE, ALL_MIN_FILE, LATEST_FILE, render_json, render_json_min
 from .model import WHEELS, DrawSet, LottoError, contest_numbers, iso
@@ -100,3 +101,45 @@ def _payload(records: list[dict], year: str | None = None) -> dict:
         "last_date": draws[-1]["date"],
         "draws": draws,
     }
+
+
+# ---------------------------------------------------------------------------- ADM
+
+#: Results page of ADM, the regulator, keyed by year and contest. It serves 2024 onward.
+ADM_URL = (
+    "https://www.adm.gov.it/portale/monopoli/giochi/gioco-del-lotto/10lotto/estrazioni_10elotto"
+    "?p_p_id=it_sogei_wda_web_portlet_WebDisplayAamsPortlet&p_p_lifecycle=2&p_p_state=normal"
+    "&p_p_mode=view&p_p_cacheability=cacheLevelPage"
+    "&_it_sogei_wda_web_portlet_WebDisplayAamsPortlet_anno={year}"
+    "&_it_sogei_wda_web_portlet_WebDisplayAamsPortlet_prog={contest}"
+)
+_ADM_TITLE_RE = re.compile(r"<h3>Estrazione 10eLotto n\D+(\d+) del (\d\d)/(\d\d)/(\d{4})</h3>")
+_ADM_VALUE_RE = re.compile(r"<p>\s*(\d+)\s*</p>")
+#: Start of each ``<h4>`` heading -> (record key, how many values, which one to keep).
+_ADM_BLOCKS = {
+    "Numero Oro": ("gold", 1, 0),
+    "Doppio Oro": ("double_gold", 2, 1),
+    "Extra": ("extra", EXTRA, None),
+}
+
+
+def parse_adm(html: str) -> dict | None:
+    """The record ADM publishes, or ``None`` when it has no such draw yet."""
+    if "Non ci sono estrazioni" in html:
+        return None
+    # The search form after the results has <p> elements of its own.
+    head, *blocks = html.split("boxEvidenza")[0].split("<h4>")
+    title = _ADM_TITLE_RE.search(head)
+    numbers = [int(n) for n in _ADM_VALUE_RE.findall(head)]
+    if not title or len(numbers) != NUMBERS:
+        raise LottoError("ADM page not understood: no title or not 20 numbers")
+    contest, day, month, year = title.groups()
+    record: dict = {"date": f"{year}-{month}-{day}", "contest": int(contest), "numbers": sorted(numbers)}
+    for block in blocks:
+        match = next((v for k, v in _ADM_BLOCKS.items() if block.startswith(k)), None)
+        values = [int(n) for n in _ADM_VALUE_RE.findall(block)]
+        if match is None or len(values) != match[1]:
+            raise LottoError(f"ADM page not understood: {block[:40]!r}")
+        key, _count, keep = match
+        record[key] = sorted(values) if keep is None else values[keep]
+    return record
