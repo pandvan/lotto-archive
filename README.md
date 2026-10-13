@@ -110,7 +110,7 @@ draw from 2024-01-02 to 2026-10-03: 576 of 576 equal.
 `--year 2024 --contest 208`. It only reports; the archive keeps the derived value.
 
 `scripts/tenelotto.py` writes the files from `data/lotto/`, with no network access;
-`--check` only compares. `.github/workflows/tenelotto.yml` runs it after every archive
+`--check` only compares. `.github/workflows/10elotto.yml` runs it after every archive
 update, in a commit of its own, so a 10eLotto problem never holds back a Lotto draw. A
 Lotto draw that still lacks a city wheel has no 10eLotto record until the wheel arrives,
 so `data/10elotto/latest.json` can be one draw behind `data/lotto/latest.json`.
