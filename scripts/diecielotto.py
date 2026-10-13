@@ -15,7 +15,7 @@ from _common import REPO_ROOT, summary
 
 from lotto.archive import load
 from lotto.model import LottoError
-from lotto.tenelotto import DATA_DIR, build, render
+from lotto.diecielotto import DATA_DIR, build, render
 
 
 def main() -> int:

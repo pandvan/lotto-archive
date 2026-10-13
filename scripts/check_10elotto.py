@@ -17,7 +17,7 @@ from _common import REPO_ROOT, summary
 
 from lotto import sources
 from lotto.model import LottoError
-from lotto.tenelotto import ADM_URL, DATA_DIR, parse_adm
+from lotto.diecielotto import ADM_URL, DATA_DIR, parse_adm
 
 
 def main() -> int:

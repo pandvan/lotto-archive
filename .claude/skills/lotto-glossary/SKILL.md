@@ -82,7 +82,7 @@ reported as isotopia. The code generalises the term — if a docstring or a labe
 ## 10eLotto
 
 The evening draw tied to Lotto, derived from it. Game id `10elotto`; the Python module
-is `tenelotto`, because a module name cannot start with a digit.
+is `diecielotto`, because a module name cannot start with a digit.
 
 | Italian / official API field | Use | Note |
 |---|---|---|
