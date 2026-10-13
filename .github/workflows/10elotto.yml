@@ -1,0 +1,72 @@
+name: Derive the 10eLotto archive
+
+# The 10eLotto files are a pure function of the committed Lotto files, and are not
+# critical. They are derived here, after the Lotto commit, so a failure can never block
+# or undo it.
+#
+# A push made with GITHUB_TOKEN does not start another workflow, so `workflow_run` is
+# the trigger that fires for the data commits. The job is idempotent: a run with
+# nothing to do commits nothing.
+on:
+  workflow_run:
+    workflows: ['Update archive', 'Reconcile with fallback']
+    types: [completed]
+  workflow_dispatch:
+
+# Shared with the two workflows that push to main, so pushes never race.
+concurrency:
+  group: archive-update
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  issues: write
+
+jobs:
+  derive:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+
+      # A draw that cannot be derived fails this step, but the others are still
+      # written and must still be committed.
+      - name: Derive
+        id: derive
+        continue-on-error: true
+        run: python scripts/diecielotto.py
+
+      - name: Commit
+        run: |
+          git config user.name  'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add data/10elotto
+          git diff --cached --quiet && exit 0
+          git commit -m "data: 10eLotto through $(jq -r .date data/10elotto/latest.json)"
+          git push
+
+      - name: Report a failure
+        if: ${{ failure() || steps.derive.outcome == 'failure' }}
+        uses: actions/github-script@v9
+        with:
+          script: |
+            const title = '10eLotto derivation failed';
+            const existing = await github.rest.issues.listForRepo({
+              owner: context.repo.owner, repo: context.repo.repo,
+              state: 'open', labels: 'automation',
+            });
+            // One open issue is enough; the Lotto archive is not affected.
+            if (existing.data.some(i => i.title === title)) return;
+            await github.rest.issues.create({
+              owner: context.repo.owner, repo: context.repo.repo,
+              title, labels: ['automation'],
+              body: [
+                'The 10eLotto archive could not be derived from the Lotto archive.',
+                'The Lotto archive itself is not affected.',
+                '',
+                `Run: ${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
+              ].join('\n'),
+            });

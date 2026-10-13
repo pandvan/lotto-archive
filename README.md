@@ -15,8 +15,9 @@ by a GitHub Action.
 | `data/lotto/all.json` | Every draw in one file, indented |
 | `data/lotto/all.min.json` | Every draw in one file, minified |
 | `data/lotto/latest.json` | The most recent draw only |
-| `index.json` | Coverage, per-year counts, and upstream source state |
-| `schema/` | JSON Schema for a draw, a year file, and a formula listing |
+| `data/10elotto/` | The 10eLotto draw tied to Lotto, same four kinds of file — see [10eLotto](#10elotto) |
+| `index.json` | Coverage, per-year counts, and upstream source state of the Lotto archive |
+| `schema/` | JSON Schema for a draw, a year file, a 10eLotto draw and year file, and a formula listing |
 
 The Lotto files moved from `data/` to `data/lotto/` in October 2026. Old URLs such as
 `data/latest.json` and `data/<year>.json` no longer resolve; insert `lotto/` after `data/`.
@@ -67,6 +68,50 @@ The Lotto files moved from `data/` to `data/lotto/` in October 2026. Old URLs su
 Draws are currently held on **Tuesday, Thursday, Friday and Saturday**. This has changed
 over the years — three a week until 2025, and Saturday only for much of the 20th century —
 so derive the calendar from the data rather than assuming it.
+
+## 10eLotto
+
+`data/10elotto/` holds the evening 10eLotto draw that is tied to Lotto: one per Lotto
+draw since **2009-06-11**, never the five-minute game. The layout mirrors the Lotto one:
+`<year>.json`, `all.json`, `all.min.json` and `latest.json`.
+
+```json
+{
+  "date": "2026-10-10",
+  "contest": 163,
+  "numbers": [5, 11, 15, 16, 17, 20, 21, 23, 30, 31, 32, 38, 50, 53, 59, 66, 68, 74, 75, 82],
+  "gold": 16,
+  "double_gold": 38,
+  "extra": [7, 10, 29, 39, 44, 55, 56, 61, 62, 63, 64, 77, 78, 80, 88]
+}
+```
+
+- **`date`**, **`contest`** — those of the Lotto draw.
+- **`numbers`** — the 20 drawn numbers, ascending.
+- **`gold`** — *Numero Oro*, from 2014-06-26.
+- **`double_gold`** — the second number of *Doppio Oro*, from 2017-10-03.
+- **`extra`** — the 15 *Extra* numbers, ascending, from 2021-10-21.
+
+A key is **absent**, not `null`, before the date its option started.
+
+**The values are derived, not downloaded.** The draw is a function of the Lotto draw:
+
+1. Take the ten city wheels in alphabetical order, without Nazionale.
+2. Walk the first and second number of each wheel, then the third number of every
+   wheel, then the fourth, then the fifth. Skip a number that is already out.
+3. The first 20 are `numbers`; the next 15 are `extra`.
+4. `gold` is the first number drawn on Bari, `double_gold` the second.
+5. When the ten wheels give fewer than 35 distinct numbers (about one draw in fifty),
+   the walk continues on Nazionale, in extraction order.
+
+The rule was checked against the regulator's published results (adm.gov.it) for every
+draw from 2024-01-02 to 2026-10-03: 576 of 576 equal.
+
+`scripts/diecielotto.py` writes the files from `data/lotto/`, with no network access;
+`--check` only compares. `.github/workflows/10elotto.yml` runs it after every archive
+update, in a commit of its own, so a 10eLotto problem never holds back a Lotto draw. A
+Lotto draw that still lacks a city wheel has no 10eLotto record until the wheel arrives,
+so `data/10elotto/latest.json` can be one draw behind `data/lotto/latest.json`.
 
 ## Using it
 
@@ -354,6 +399,7 @@ python -m venv .venv && .venv/bin/pip install -r requirements-dev.txt
 | `scripts/update.py` | Incremental update, primary first |
 | `scripts/reconcile.py` | Cross-check against the fallback |
 | `scripts/validate.py` | Validate the committed archive |
+| `scripts/diecielotto.py` | Derive `data/10elotto/` from `data/lotto/`; `--check` only compares |
 | `scripts/build_site.py` | Build the static statistics site into `site/` |
 | `scripts/formula.py` | Run the lookup formula, or a listing, over one draw or a range |
 | `scripts/convert_formulas.py` | Convert `.frm` listings into the JSON formula format |
