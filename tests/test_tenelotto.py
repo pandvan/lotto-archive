@@ -185,12 +185,14 @@ def check(monkeypatch, root, page, *argv):
 def test_the_check_compares_the_latest_draw_with_adm(tmp_path, monkeypatch, capsys):
     archive.write(tmp_path, {OCT_10: OCT_10_WHEELS}, generated_at="x", sources={})
     run(monkeypatch, tmp_path)
+    # The only draw of this archive's year is contest 1.
+    page = ADM_PAGE.replace("n&deg; 163", "n&deg; 1")
 
-    assert check(monkeypatch, tmp_path, ADM_PAGE) == 0
+    assert check(monkeypatch, tmp_path, page) == 0
     assert check(monkeypatch, tmp_path, ADM_EMPTY) == 0
     assert "not published" in capsys.readouterr().out
 
-    assert check(monkeypatch, tmp_path, ADM_PAGE.replace("<p>38</p> </div>", "<p>39</p> </div>")) == 1
+    assert check(monkeypatch, tmp_path, page.replace("<p>38</p> </div>", "<p>39</p> </div>")) == 1
     assert "double_gold: derived 38, ADM 39" in capsys.readouterr().out
     # A draw ADM has and the archive lacks is a difference too.
-    assert check(monkeypatch, tmp_path, ADM_PAGE, "--year", "2026", "--contest", "5") == 1
+    assert check(monkeypatch, tmp_path, page, "--year", "2026", "--contest", "5") == 1
