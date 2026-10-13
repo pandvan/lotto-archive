@@ -98,6 +98,57 @@ body {
 
 a { color: var(--series-1); }
 
+/* ------------------------------------------------------------------ banner */
+
+/* The same on every page and in both themes: the site name over a tile of faint balls,
+   and the switch between the two games, each a page of its own. */
+.banner {
+  background: url(banner.svg), linear-gradient(120deg, #104281, #0b2545);
+  color: #fff;
+}
+
+.banner-in {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 28px 16px 20px;
+}
+
+.brand {
+  color: #fff;
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  text-decoration: none;
+}
+
+.banner p { margin: 2px 0 0; color: rgba(255, 255, 255, 0.78); font-size: 13px; }
+
+.games { display: flex; gap: 4px; }
+
+.games a {
+  padding: 7px 14px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  color: rgba(255, 255, 255, 0.82);
+  text-decoration: none;
+}
+
+.games a:hover { background: rgba(255, 255, 255, 0.1); }
+
+.games a[aria-current="page"] {
+  background: rgba(255, 255, 255, 0.16);
+  border-color: rgba(255, 255, 255, 0.3);
+  color: #fff;
+  font-weight: 600;
+}
+
+.banner a:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+
 /* ------------------------------------------------------------------ header */
 
 .top {
@@ -262,6 +313,7 @@ header h1 {
 
 select,
 input[type="number"],
+input[type="search"],
 button {
   font: inherit;
   color: var(--ink);
@@ -688,6 +740,28 @@ dialog .bet { margin-right: 8px; padding: 3px; border: 1px solid var(--axis); bo
 .verdict.no::before { content: "\2717"; }
 .verdict.watch { color: var(--critical); }
 .verdict.watch::before { content: "\26A0"; }
+
+/* ---------------------------------------------------------------- 10eLotto */
+
+.balls { display: flex; flex-wrap: wrap; gap: 4px; }
+.latest .balls + h2 { margin-top: 14px; }
+
+/* The .balls prefix is there to outweigh the themed .ball colour above. */
+.balls .ball.gold, .legend .ball.gold { background: var(--warning); color: #0b0b0b; font-weight: 600; }
+.balls .ball.gold2, .legend .ball.gold2 { box-shadow: inset 0 0 0 2px var(--warning); font-weight: 600; }
+.balls .ball.hit, .archive .ball.hit { outline: 2px solid var(--series-1); outline-offset: 1px; }
+.balls.extra .ball { background: transparent; border: 1px solid var(--axis); }
+.legend .ball { min-width: 14px; height: 14px; padding: 0; }
+
+.draws th, .draws td { text-align: left; white-space: normal; vertical-align: top; }
+/* Ten balls a row for the numbers, and the same width for the Extra. */
+.draws .balls { width: 296px; }
+
+/* The Lotto draws: a wheel per column, its five numbers in drawing order. */
+.archive th, .archive td { text-align: left; }
+.card h3 { margin: 18px 0 4px; font-size: 14px; }
+.card h3 + .help { margin: 0 0 10px; color: var(--ink-2); font-size: 13px; }
+.archive .ball { margin-right: 4px; }
 
 footer {
   margin-top: 32px;

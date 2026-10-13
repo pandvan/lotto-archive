@@ -205,10 +205,13 @@ python -m http.server -d site 8000              # then open http://localhost:800
 
 | Path | What it is |
 |---|---|
-| `web/` | The page itself — hand-written HTML, CSS and JS, no dependencies |
+| `web/` | The pages themselves — hand-written HTML, CSS and JS, no dependencies |
+| `web/10elotto.html` | The 10eLotto page: every draw of a year, newest first, filtered by the numbers it must hold |
+| `web/banner.svg` | The tile behind the site name in the banner both pages open with |
+| `web/common.js` | What the two pages share: formatting, the element builder, the theme switch |
 | `web/formula.js` | The formula rule ported to the browser, for the *Formule* tab |
 | `scripts/build_site.py` | Copies `web/`, then writes the computed JSON next to it |
-| `site/` | Build output: the page plus `data/meta.json`, `data/wheels/<wheel>.json` and `data/draws.json` |
+| `site/` | Build output: the pages plus `data/meta.json`, `data/wheels/<wheel>.json`, `data/draws.json` and `data/10elotto.json` |
 
 The *Formule* tab takes a listing in the [JSON formula format](#the-json-formula-format),
 uploaded from disk and never sent anywhere, and runs it over the last year, the last 5
@@ -230,6 +233,10 @@ formula charts its wins colpo by colpo against the expected ones. `web/formula.j
 port of `scripts/lotto/listing.py` at the default `medium` scope, and
 `tests/test_formula_js.py` holds the two to the same output (it needs `node`, and skips
 without it).
+
+The *Estrazioni* section, beside *Statistiche* and *Formule*, lists the draws of a year, newest first, on the chosen wheel or on
+all of them, kept when every number typed came out on the wheels shown; it reads the raw
+`data/draws.json` and computes nothing.
 
 What it computes, per wheel and for the union of all wheels, over the whole archive and
 over the last 500 and last 100 draws:
@@ -257,7 +264,7 @@ usually breaks both:
   measures whether the archive departs from equiprobability at all. It does not.
 
 The generated JSON uses English keys and carries no prose; every Italian label lives in
-`web/app.js`, which is also the only place the lotto vocabulary appears.
+`web/app.js` and `web/10elotto.js`, which are also the only places the lotto vocabulary appears.
 
 ## Formulas
 

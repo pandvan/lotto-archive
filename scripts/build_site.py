@@ -5,7 +5,7 @@ Reads ``data/lotto/<year>.json``, computes every statistic in :mod:`lotto.stats`
 writes a self-contained directory ready for GitHub Pages: the hand-written assets
 from ``web/`` copied verbatim, plus one JSON file of metadata and one per wheel
 under ``data/``, the tabellone grid of every wheel, and the raw draws for the page's formula tab, which runs an uploaded
-listing in the browser.
+listing in the browser. The 10eLotto page reads ``data/10elotto/`` as it is, copied.
 
 The output is entirely derived and is not committed -- ``.github/workflows/pages.yml``
 rebuilds it whenever the archive changes.
@@ -20,6 +20,7 @@ from pathlib import Path
 from _common import REPO_ROOT, summary, utc_stamp
 
 from lotto.archive import ALL_MIN_FILE, DATA_DIR, load, render_json, render_json_min
+from lotto.diecielotto import DATA_DIR as DIECIELOTTO_DIR
 from lotto.stats import build
 from lotto.tabellone import grid
 
@@ -72,6 +73,10 @@ def main() -> int:
         (wheels_dir / f"{wheel}.json").write_text(render(payload), encoding="utf-8")
     (data_dir / "board.json").write_text(render(grid(draws)), encoding="utf-8")
     shutil.copyfile(root / DATA_DIR / ALL_MIN_FILE, data_dir / "draws.json")
+    # Derived and not critical: the Lotto pages are built with or without it.
+    diecielotto = root / DIECIELOTTO_DIR / ALL_MIN_FILE
+    if diecielotto.exists():
+        shutil.copyfile(diecielotto, data_dir / "10elotto.json")
 
     written = sorted(path for path in out.rglob("*") if path.is_file())
     total = sum(path.stat().st_size for path in written)
