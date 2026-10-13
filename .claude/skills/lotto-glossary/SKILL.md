@@ -79,6 +79,21 @@ slot already used by another counts, so 62 on cagliari slot 2 with 35 on roma sl
 reported as isotopia. The code generalises the term — if a docstring or a label says
 *isotopia*, say which of the two it means.
 
+## 10eLotto
+
+The evening draw tied to Lotto, derived from it. Game id `10elotto`; the Python module
+is `tenelotto`, because a module name cannot start with a digit.
+
+| Italian / official API field | Use | Note |
+|---|---|---|
+| numeri estratti / `numeriEstratti` | `numbers` | the 20 |
+| Numero Oro / `numeroSpeciale` | `gold` | first number drawn on Bari |
+| Doppio Oro / `doppioNumeroSpeciale` | `double_gold` | the **second** gold number only, as the API does |
+| Extra / `numeriEstrattiOvertime` | `extra` | the 15 |
+| estrazione, concorso | `draw`, `contest` | same date and contest as the Lotto draw |
+
+UI labels stay Italian: *Numero Oro*, *Doppio Oro*, *Extra*.
+
 ## Cross-repo
 
 `lotto-convergence` (Java, the user's own program) is the authority on what a formula
