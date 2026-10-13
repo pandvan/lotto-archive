@@ -48,12 +48,25 @@ jobs:
           git commit -m "data: 10eLotto through $(jq -r .date data/10elotto/latest.json)"
           git push
 
+      # ADM, the regulator, only confirms: the archive keeps the derived value whatever
+      # the answer. A draw ADM has not published yet is not a failure.
+      - name: Check the latest draw against ADM
+        id: adm
+        if: ${{ !cancelled() }}
+        continue-on-error: true
+        run: |
+          pip install -q -r requirements.txt
+          python scripts/check_10elotto.py
+
       - name: Report a failure
-        if: ${{ failure() || steps.derive.outcome == 'failure' }}
+        if: ${{ failure() || steps.derive.outcome == 'failure' || steps.adm.outcome == 'failure' }}
         uses: actions/github-script@v9
+        env:
+          DERIVED: ${{ steps.derive.outcome }}
         with:
           script: |
-            const title = '10eLotto derivation failed';
+            const derived = process.env.DERIVED !== 'failure';
+            const title = derived ? '10eLotto check against ADM failed' : '10eLotto derivation failed';
             const existing = await github.rest.issues.listForRepo({
               owner: context.repo.owner, repo: context.repo.repo,
               state: 'open', labels: 'automation',
@@ -64,7 +77,9 @@ jobs:
               owner: context.repo.owner, repo: context.repo.repo,
               title, labels: ['automation'],
               body: [
-                'The 10eLotto archive could not be derived from the Lotto archive.',
+                derived
+                  ? 'The latest 10eLotto draw differs from what ADM publishes, or ADM could not be read.'
+                  : 'The 10eLotto archive could not be derived from the Lotto archive.',
                 'The Lotto archive itself is not affected.',
                 '',
                 `Run: ${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
