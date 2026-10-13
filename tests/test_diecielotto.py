@@ -6,10 +6,11 @@ import sys
 
 import pytest
 
+import check_10elotto as check_cli
 import diecielotto as cli
 from lotto import archive
 from lotto.model import LottoError
-from lotto.diecielotto import FIELD_START, TIED_WHEELS, build, derive, render
+from lotto.diecielotto import FIELD_START, TIED_WHEELS, build, derive, parse_adm, render
 
 #: Lotto draw of 2026-10-10; the 10eLotto values below come from the official API.
 OCT_10 = datetime.date(2026, 10, 10)
@@ -135,3 +136,63 @@ def test_the_command_writes_nothing_without_tied_wheels(tmp_path, monkeypatch):
 
 def test_tied_wheels_leave_out_nazionale():
     assert len(TIED_WHEELS) == 10 and "nazionale" not in TIED_WHEELS
+
+
+# ---------------------------------------------------------------------------- ADM
+
+#: The ADM page for 2026-10-10, trimmed to what the parser reads.
+ADM_PAGE = """
+<div class="estrazioni"> <h3>Estrazione 10eLotto n&deg; 163 del 10/10/2026</h3>
+<p>5</p> <p>11</p> <p>15</p> <p>16</p> <p>17</p> <p>20</p> <p>21</p> <p>23</p> <p>30</p> <p>31</p>
+<p>32</p> <p>38</p> <p>50</p> <p>53</p> <p>59</p> <p>66</p> <p>68</p> <p>74</p> <p>75</p> <p>82</p> </div>
+<h4>Numero Oro (primo estratto sulla ruota di Bari):</h4> <div class="estrazioni"> <p>16</p> </div>
+<h4>Doppio Oro (primo e secondo estratto sulla ruota di Bari):</h4>
+<div class="estrazioni"> <p>16</p> <p>38</p> </div>
+<h4>Extra:</h4> <div class="estrazioni"> <p>7</p> <p>10</p> <p>29</p> <p>39</p> <p>44</p> <p>55</p>
+<p>56</p> <p>61</p> <p>62</p> <p>63</p> <p>64</p> <p>77</p> <p>78</p> <p>80</p> <p>88</p> </div>
+<div id='boxEvidenza'> <h3>Cerca Estrazioni</h3> <form> <p> <label for='mese'>mese</label> </p>
+<p> <input type='text' id='prog' name='prog' value='' /> </p> </form> </div>
+"""
+ADM_EMPTY = "<div class=\"estrazioni\"> <div class='error'>Non ci sono estrazioni.</div> </div>"
+
+
+def test_parse_adm_reads_the_same_record_the_archive_derives():
+    assert parse_adm(ADM_PAGE) == {
+        "date": "2026-10-10",
+        "contest": 163,
+        **derive(OCT_10, OCT_10_WHEELS),
+    }
+
+
+def test_parse_adm_knows_a_draw_not_published_yet():
+    assert parse_adm(ADM_EMPTY) is None
+
+
+def test_parse_adm_rejects_changed_markup():
+    with pytest.raises(LottoError, match="not understood"):
+        parse_adm(ADM_PAGE.replace("<h4>Extra:", "<h4>Gong:"))
+    with pytest.raises(LottoError, match="not understood"):
+        parse_adm("<html>Access Denied</html>")
+
+
+def check(monkeypatch, root, page, *argv):
+    path = root / "adm.html"
+    path.write_text(page)
+    monkeypatch.setattr(sys, "argv", ["check", "--root", str(root), "--file", str(path), *argv])
+    return check_cli.main()
+
+
+def test_the_check_compares_the_latest_draw_with_adm(tmp_path, monkeypatch, capsys):
+    archive.write(tmp_path, {OCT_10: OCT_10_WHEELS}, generated_at="x", sources={})
+    run(monkeypatch, tmp_path)
+    # The only draw of this archive's year is contest 1.
+    page = ADM_PAGE.replace("n&deg; 163", "n&deg; 1")
+
+    assert check(monkeypatch, tmp_path, page) == 0
+    assert check(monkeypatch, tmp_path, ADM_EMPTY) == 0
+    assert "not published" in capsys.readouterr().out
+
+    assert check(monkeypatch, tmp_path, page.replace("<p>38</p> </div>", "<p>39</p> </div>")) == 1
+    assert "double_gold: derived 38, ADM 39" in capsys.readouterr().out
+    # A draw ADM has and the archive lacks is a difference too.
+    assert check(monkeypatch, tmp_path, page, "--year", "2026", "--contest", "5") == 1
