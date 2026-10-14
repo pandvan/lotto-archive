@@ -81,6 +81,11 @@ const LABELS = {
     ['followers', 'Numeri spia'],
     ['check', 'Verifica'],
   ],
+  // The two readings of the draws: a row per draw, or each draw as it is printed.
+  drawViews: [
+    ['list', 'Elenco'],
+    ['matrix', 'Per estrazione'],
+  ],
   // How far back a listing is run, in years before the last draw.
   formulaPeriods: [
     ['1', 'Ultimo anno'],
@@ -504,6 +509,7 @@ const state = {
   tab: DEFAULT_TAB,
   spy: 1,
   drawsYear: null,
+  drawsView: 'list',
   contains: '',
   cache: new Map(),
   draws: null,
@@ -1007,12 +1013,23 @@ function renderEstrazioni() {
       return;
     }
     const lit = (wheel, n) => (shown.includes(wheel) && numbers.includes(n) ? 'hit' : null);
+    const more = found.length > MAX_ROWS
+      ? ` Mostrate le prime ${MAX_ROWS}: scegli un anno o aggiungi un numero.`
+      : '';
+    if (view.value === 'matrix') {
+      out.replaceChildren(
+        el('h3', { text: title }),
+        el('p', { class: 'help', text: `Dalla più recente, ogni estrazione con tutte le sue ruote.${more}` }),
+        el('div', { class: 'draw-cards' }, found.slice(0, MAX_ROWS).map((draw) => el('section', { class: 'draw-card' },
+          el('h4', {}, `Concorso ${draw.contest}`, el('span', { text: date(draw.date) })),
+          drawMatrix(draw, lit, true)))));
+      return;
+    }
     out.replaceChildren(
       el('h3', { text: title }),
       el('p', {
         class: 'help',
-        text: 'Dalla più recente. Clicca una data per vedere l\'estrazione intera.' +
-          (found.length > MAX_ROWS ? ` Mostrate le prime ${MAX_ROWS}: scegli un anno o aggiungi un numero.` : ''),
+        text: `Dalla più recente. Clicca una data per vedere l'estrazione intera.${more}`,
       }),
       el('div', { class: 'scroll' }, el('table', { class: 'archive' },
         el('thead', {}, el('tr', {}, ['Data', 'Concorso', ...shown.map(wheelName)]
@@ -1032,6 +1049,10 @@ function renderEstrazioni() {
             : '—'))))))));
   }
 
+  const view = el('select', {
+    id: 'draws-view',
+    onchange: () => { state.drawsView = view.value; syncHash(); fill(); },
+  }, LABELS.drawViews.map(([value, text]) => el('option', { value, text, selected: value === state.drawsView })));
   const year = el('select', {
     id: 'draws-year', onchange: () => { state.drawsYear = year.value; fill(); },
   });
@@ -1062,6 +1083,7 @@ function renderEstrazioni() {
     'estrazione. Il filtro tiene le estrazioni in cui <strong>tutti</strong> i numeri scritti ' +
     'sono usciti sulle ruote mostrate, anche su ruote diverse.',
     el('div', { class: 'groups' },
+      el('div', { class: 'field' }, el('label', { for: 'draws-view', text: 'Vista' }), view),
       el('div', { class: 'field' }, el('label', { for: 'draws-year', text: 'Anno' }), year),
       el('div', { class: 'field' }, el('label', { for: 'draws-contains', text: 'Contiene i numeri' }), contains)),
     out);
@@ -1088,15 +1110,22 @@ function showDraw(draw, lit, note) {
   dialog.replaceChildren(
     el('h2', { text: `Estrazione del ${date(draw.date)} · concorso ${draw.contest}` }),
     el('p', { class: 'help', text: note }),
-    el('table', { class: 'matrix' },
-      el('thead', {}, el('tr', {},
-        el('th', { scope: 'col', text: 'Ruota' }),
-        [1, 2, 3, 4, 5].map((p) => el('th', { scope: 'col', text: `${p}ª` })))),
-      el('tbody', {}, Object.entries(draw.wheels).map(([wheel, numbers]) => el('tr', {},
-        el('th', { scope: 'row', text: wheelName(wheel) }),
-        numbers.map((n) => el('td', { class: lit(wheel, n), text: String(n) })))))),
+    drawMatrix(draw, lit),
     el('form', { method: 'dialog' }, el('button', { text: 'Chiudi' })));
   dialog.showModal();
+}
+
+/** A draw as it is printed: a wheel per row, a position per column; `balls` draws them round. */
+function drawMatrix(draw, lit, balls = false) {
+  return el('table', { class: 'matrix' },
+    el('thead', {}, el('tr', {},
+      el('th', { scope: 'col', text: 'Ruota' }),
+      [1, 2, 3, 4, 5].map((p) => el('th', { scope: 'col', text: `${p}ª` })))),
+    el('tbody', {}, Object.entries(draw.wheels).map(([wheel, numbers]) => el('tr', {},
+      el('th', { scope: 'row', text: wheelName(wheel) }),
+      numbers.map((n) => (balls
+        ? el('td', {}, el('span', { class: ['ball', lit(wheel, n)].filter(Boolean).join(' '), text: String(n) }))
+        : el('td', { class: lit(wheel, n), text: String(n) })))))));
 }
 
 /** One formula in full: its search numbers, every bet it plays, and how it fared. */
@@ -1763,7 +1792,7 @@ async function render() {
 
 /**
  * The address is the tab, then what that tab depends on: `#/pairs/napoli/all`,
- * `#/followers/napoli/all/12`. A listing is run over every wheel and its own period, so
+ * `#/followers/napoli/all/12`, `#/draws/all/all/matrix`. A listing is run over every wheel and its own period, so
  * its tab carries only that, its colpi and the view of the results: `#/formulas/5/20/ranking`.
  *
  * The address is English throughout, so the pseudo-wheel `tutte` is written `all` there
@@ -1774,6 +1803,7 @@ function syncHash() {
     ? ['', state.tab, state.formula.period, String(state.formula.colpi), state.formula.view]
     : ['', state.tab, state.wheel === 'tutte' ? 'all' : state.wheel, state.period];
   if (state.tab === 'followers') parts.push(String(state.spy));
+  if (state.tab === 'draws') parts.push(state.drawsView);
   history.replaceState(null, '', `#${parts.join('/')}`);
 }
 
@@ -1791,6 +1821,7 @@ function readHash() {
     return;
   }
   const [inAddress, period, spy] = rest;
+  if (LABELS.drawViews.some(([id]) => id === spy)) state.drawsView = spy;
   const wheel = inAddress === 'all' ? 'tutte' : inAddress;
   // Checked against what the site holds, not against LABELS: a plain object also
   // answers to `constructor`, and a wheel with no file leaves the view blank.

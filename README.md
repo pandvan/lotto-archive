@@ -235,7 +235,8 @@ port of `scripts/lotto/listing.py` at the default `medium` scope, and
 without it).
 
 The *Estrazioni* section, beside *Statistiche* and *Formule*, lists the draws of a year, newest first, on the chosen wheel or on
-all of them, kept when every number typed came out on the wheels shown; it reads the raw
+all of them, kept when every number typed came out on the wheels shown, either as a row per draw or
+each draw as a table of wheels by positions; it reads the raw
 `data/draws.json` and computes nothing.
 
 What it computes, per wheel and for the union of all wheels, over the whole archive and
