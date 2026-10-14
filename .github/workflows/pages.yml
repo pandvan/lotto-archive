@@ -5,10 +5,12 @@ name: Publish the statistics site
 #
 # A push made with GITHUB_TOKEN does not start another workflow, so the daily data
 # commit from "Update archive" would never reach a `push` trigger here. `workflow_run`
-# is the trigger that does fire for it.
+# is the trigger that does fire for it. Only the 10eLotto workflow is listed: it runs
+# after every "Update archive" and "Reconcile with fallback", so listing those too
+# published the site twice per update.
 on:
   workflow_run:
-    workflows: ['Update archive', 'Reconcile with fallback', 'Derive the 10eLotto archive']
+    workflows: ['Derive the 10eLotto archive']
     types: [completed]
   push:
     branches: [main]
@@ -30,11 +32,8 @@ concurrency:
 
 jobs:
   build:
-    # On a workflow_run trigger, only publish when the run that produced the data
-    # actually succeeded; a failed update must not republish anything.
-    if: >-
-      github.event_name != 'workflow_run' ||
-      github.event.workflow_run.conclusion == 'success'
+    # Publish whatever 10eLotto concluded: main already holds the Lotto commit, and a
+    # derived-archive failure must never hold it back.
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
