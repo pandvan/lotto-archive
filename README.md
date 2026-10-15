@@ -206,10 +206,12 @@ python -m http.server -d site 8000              # then open http://localhost:800
 | Path | What it is |
 |---|---|
 | `web/` | The pages themselves — hand-written HTML, CSS and JS, no dependencies |
-| `web/10elotto.html` | The 10eLotto page: every draw of a year, newest first, filtered by the numbers it must hold |
+| `web/10elotto.html` | The 10eLotto page: its draws filtered by the numbers they hold, a statistics placeholder, and the *Formule* tab on the 20 numbers |
 | `web/banner.svg` | The tile behind the site name in the banner both pages open with |
 | `web/common.js` | What the two pages share: formatting, the element builder, the theme switch |
+| `web/ui.js` | Charts, tables, cards and the draw dialog both pages build their views from |
 | `web/formula.js` | The formula rule ported to the browser, for the *Formule* tab |
+| `web/formula-view.js` | The *Formule* tab itself, shared by both pages; on 10eLotto it hides the options about wheels |
 | `scripts/build_site.py` | Copies `web/`, then writes the computed JSON next to it |
 | `site/` | Build output: the pages plus `data/meta.json`, `data/wheels/<wheel>.json`, `data/draws.json` and `data/10elotto.json` |
 
@@ -224,7 +226,7 @@ match opens that draw as a matrix with the numbers highlighted.
 
 It also says how every clean bet **fared**: won when all its numbers came out together
 on one wheel of the match within the chosen *colpi* (20 by default), lost, or still
-open. *Esito su* widens the search to all ten city wheels, or to those and the
+open. *Cercato su* widens the search to all ten city wheels, or to those and the
 Nazionale. Beside every win rate stands the rate chance alone gives for the same bets
 over the same wheels and colpi, and only bets whose colpi have all been drawn enter
 either. A ranking compares the formulas, a heatmap shows each one's gap from chance
@@ -265,7 +267,7 @@ usually breaks both:
   measures whether the archive departs from equiprobability at all. It does not.
 
 The generated JSON uses English keys and carries no prose; every Italian label lives in
-`web/app.js` and `web/10elotto.js`, which are also the only places the lotto vocabulary appears.
+the scripts under `web/`, which are also the only places the lotto vocabulary appears.
 
 ## Formulas
 
@@ -288,6 +290,7 @@ Rear=13            draws the retrovisione reaches back
 .venv/bin/python scripts/formula.py --listing formulas/nsla.json          # the latest draw
 .venv/bin/python scripts/formula.py --listing frm/allor.integrale.2019.frm --scan --since 2026-01-01
 .venv/bin/python scripts/formula.py -s "84 68 # 15 19 # 60" -z 3          # one formula, typed out
+.venv/bin/python scripts/formula.py --game 10elotto --listing formulas/nsla.json --scan  # on the 20 10eLotto numbers
 ```
 
 ```

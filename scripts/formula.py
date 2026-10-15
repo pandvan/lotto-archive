@@ -9,6 +9,10 @@ draws on the matching wheels: one whose numbers already came out there is report
 rejected, and what is left is the clean play. ``--scope`` widens or narrows the wheels
 that check searches.
 
+With ``--game 10elotto`` the same listing runs on the 20 numbers of the 10eLotto draw,
+derived from the Lotto archive: there are no wheels, so a formula matches when all its
+search numbers are among the 20, and its bets are checked and played there.
+
 Formulas come either from a file -- ``.frm`` or its JSON form, see
 ``schema/formula.schema.json`` -- or typed out on the command line in the same syntax,
 numbers first and a bet per ``#`` column.
@@ -30,6 +34,7 @@ from pathlib import Path
 from _common import REPO_ROOT
 
 from lotto.archive import load
+from lotto.diecielotto import as_draws, build
 from lotto.listing import (
     DEFAULT_LOOKBACK,
     DEFAULT_PLAY,
@@ -54,6 +59,13 @@ def parse_args() -> argparse.Namespace:
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )
     parser.add_argument("--root", type=Path, default=REPO_ROOT, help="repository root")
+    parser.add_argument(
+        "--game",
+        choices=("lotto", "10elotto"),
+        default="lotto",
+        help="the draws to run on: the Lotto wheels, or the 20 numbers of the 10eLotto "
+        "draw, where --wheels does not apply (default: lotto)",
+    )
 
     source = parser.add_mutually_exclusive_group(required=True)
     source.add_argument(
@@ -158,6 +170,17 @@ def parse_args() -> argparse.Namespace:
     args = parser.parse_args()
     if args.lookback is not None and args.lookback < 0:
         parser.error("--lookback cannot be negative")
+    if args.game == "10elotto":
+        # Everything about wheels: what was set away from its default is a mistake.
+        about_wheels = {
+            "--wheels": args.wheels is not None,
+            "--scope": args.scope != DEFAULT_SCOPE,
+            "--play": args.play != DEFAULT_PLAY,
+            "--dirty": args.dirty,
+        }
+        for flag, given in about_wheels.items():
+            if given:
+                parser.error(f"{flag} does not apply to 10elotto: its draw has no wheels")
     return args
 
 
@@ -245,6 +268,9 @@ def listing_from(args) -> Listing:
         listing = dataclasses.replace(listing, wheel_count=args.wheels)
     if args.lookback is not None:
         listing = dataclasses.replace(listing, lookback=args.lookback)
+    if args.game == "10elotto":
+        # The whole draw is one pseudo-wheel, whatever the listing was written for.
+        listing = dataclasses.replace(listing, wheel_count=1)
     return listing
 
 
@@ -304,9 +330,14 @@ def main() -> int:
     if not draws:
         print("error: no archive found", file=sys.stderr)
         return 1
+    if args.game == "10elotto":
+        # Derived on the fly, as scripts/diecielotto.py derives data/10elotto/.
+        draws, contests = as_draws(build(draws)[0])
+    else:
+        contests = contest_numbers(list(draws))
 
     try:
-        return run(args, draws, contest_numbers(list(draws)))
+        return run(args, draws, contests)
     except (LottoError, OSError) as error:
         print(f"error: {error}", file=sys.stderr)
         return 1

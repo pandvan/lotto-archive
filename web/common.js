@@ -30,6 +30,23 @@ const el = (tag, attrs = {}, ...children) => {
   return node;
 };
 
+const WHEEL_NAMES = {
+  tutte: 'Tutte le ruote',
+  bari: 'Bari',
+  cagliari: 'Cagliari',
+  firenze: 'Firenze',
+  genova: 'Genova',
+  milano: 'Milano',
+  napoli: 'Napoli',
+  palermo: 'Palermo',
+  roma: 'Roma',
+  torino: 'Torino',
+  venezia: 'Venezia',
+  nazionale: 'Nazionale',
+  '10elotto': '10eLotto',
+};
+const wheelName = (id) => WHEEL_NAMES[id] ?? id;
+
 // The draw explorers: a page of every year at once would be some hundred thousand nodes.
 const MAX_ROWS = 300;
 const ALL_YEARS = 'all';

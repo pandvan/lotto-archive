@@ -26,13 +26,13 @@ LATEST_FILE = "latest.json"
 README_FILE = "README.md"
 
 YEAR_FILE_RE = re.compile(r"^(\d{4})\.json$")
-#: Collapses arrays that hold only integers onto a single line. Arrays of objects
-#: contain '{' and so are never matched.
 #: The README's one-line summary of the archive, kept in step with the data.
 _README_SUMMARY_RE = re.compile(
     r"^[\d,]+ draws · [\d,]+ wheel results · \d{4}-\d\d-\d\d → \d{4}-\d\d-\d\d$",
     re.MULTILINE,
 )
+#: Collapses arrays that hold only integers onto a single line. Arrays of objects
+#: contain '{' and so are never matched.
 _INT_ARRAY_RE = re.compile(r"\[\s*((?:\d+,\s*)*\d+)\s*\]")
 
 
@@ -55,8 +55,6 @@ class MergeResult:
     added_dates: list[datetime.date] = field(default_factory=list)
     added_rows: int = 0
     conflicts: list[Conflict] = field(default_factory=list)
-
-
 
 
 def _compact_int_arrays(text: str) -> str:

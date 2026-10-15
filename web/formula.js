@@ -15,11 +15,6 @@
 
 const BET_ORDER = ['ambata', 'ambo', 'terno', 'quaterna', 'cinquina'];
 
-const WHEEL_ORDER = [
-  'bari', 'cagliari', 'firenze', 'genova', 'milano', 'napoli',
-  'palermo', 'roma', 'torino', 'venezia', 'nazionale',
-];
-
 /**
  * Where a bet is looked for after its match: on its own wheels, on those and the ten
  * city wheels, or on every wheel. `tutte` leaves the Nazionale out, as in the game.
@@ -117,16 +112,16 @@ function checkBet(draws, index, numbers, play, lookback) {
  */
 function outcomeOf(draws, index, numbers, play, colpi, on) {
   if (!PLAYS.includes(on)) throw new Error(`unknown play "${on}"`);
-  const wheels = WHEEL_ORDER.filter((wheel) => play.includes(wheel) ||
-    on === 'nazionale' || (on === 'tutte' && wheel !== 'nazionale'));
+  // Whatever wheels a draw holds, in its own order: the rule names none but Nazionale.
+  const counted = (wheel) => play.includes(wheel) ||
+    on === 'nazionale' || (on === 'tutte' && wheel !== 'nazionale');
   const last = Math.min(draws.length - 1, index + colpi);
   let rows = 0;
   let won = null;
   for (let i = index + 1; i <= last; i += 1) {
     const hit = [];
-    for (const wheel of wheels) {
-      const row = draws[i].wheels[wheel];
-      if (!row || !row.length) continue;
+    for (const [wheel, row] of Object.entries(draws[i].wheels)) {
+      if (!row.length || !counted(wheel)) continue;
       rows += 1;
       if (numbers.every((number) => row.includes(number))) hit.push(wheel);
     }
@@ -152,8 +147,10 @@ function scanListing(draws, listing, since = null, colpi = 0, on = 'match', dirt
     if (index < listing.lookback || (since && draw.date < since)) return;
 
     const holders = new Map();
-    for (const wheel of WHEEL_ORDER) {
-      for (const number of draw.wheels[wheel] ?? []) {
+    // A draw's wheels in its own order, which in the archive is the canonical one.
+    const order = Object.keys(draw.wheels);
+    for (const wheel of order) {
+      for (const number of draw.wheels[wheel]) {
         const wheels = holders.get(number) ?? [];
         if (!wheels.includes(wheel)) wheels.push(wheel);
         holders.set(number, wheels);
@@ -163,7 +160,7 @@ function scanListing(draws, listing, since = null, colpi = 0, on = 'match', dirt
     for (const formula of listing.formulas) {
       const wheelsOf = formula.numbers.map((number) => holders.get(number) ?? []);
       if (wheelsOf.some((wheels) => (dirty ? !wheels.length : wheels.length !== 1))) continue;
-      const wheels = WHEEL_ORDER.filter((wheel) => wheelsOf.some((held) => held.includes(wheel)));
+      const wheels = order.filter((wheel) => wheelsOf.some((held) => held.includes(wheel)));
       if (wheels.length !== listing.wheels) continue;
 
       const found = Object.fromEntries(wheels.map((wheel) => [

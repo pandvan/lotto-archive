@@ -265,6 +265,9 @@ header h1 {
   box-shadow: inset 0 0 0 1px var(--series-1);
 }
 
+/* Without the filters in between, the view would sit right against the sections. */
+.filters[hidden] ~ main { margin-top: 16px; }
+
 /* ------------------------------------------------------------------- notice */
 
 .notice {
@@ -720,7 +723,7 @@ dialog form { margin-top: 14px; text-align: right; }
 dialog .bets > div { gap: 6px 0; margin-bottom: 8px; }
 dialog .bet { margin-right: 8px; padding: 3px; border: 1px solid var(--axis); border-radius: 999px; }
 
-.matrix td { text-align: center; }
+.matrix td, .matrix thead th:not(:first-child) { text-align: center; }
 .matrix td.hit { background: var(--series-1); color: #fff; font-weight: 600; }
 .matrix td.hit.iso { background: #104281; }
 

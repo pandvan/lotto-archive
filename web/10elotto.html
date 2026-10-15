@@ -37,7 +37,9 @@
     </section>
   </header>
 
-  <div class="filters">
+  <nav class="sections" id="sections" aria-label="Sezioni"></nav>
+
+  <div class="filters" id="filters" hidden>
     <div class="field">
       <label for="year">Anno</label>
       <select id="year"></select>
@@ -61,7 +63,14 @@
 
 </div>
 
+<div class="tip" id="tip" role="status" hidden></div>
+
+<dialog id="draw"></dialog>
+
 <script src="common.js"></script>
+<script src="ui.js"></script>
+<script src="formula.js"></script>
+<script src="formula-view.js"></script>
 <script src="10elotto.js"></script>
 </body>
 </html>

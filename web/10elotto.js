@@ -1,11 +1,21 @@
 /* Estrazioni del 10eLotto — static front end.
  *
- * One page over one file, data/10elotto.json: the draws of a year, newest first, and a
- * filter on the numbers a draw must hold. Nothing is computed here but that filter.
+ * One page over one file, data/10elotto.json, in three sections like the Lotto page:
+ * "Estrazioni", the draws of a year, newest first, filtered on the numbers they hold;
+ * "Statistiche", not there yet; "Formule", the Lotto page's tab from formula-view.js,
+ * with only the options that mean something without wheels.
  */
 'use strict';
 
 const view = document.getElementById('view');
+
+// The ids are the Lotto page's, so the address reads the same on both.
+const SECTIONS = [
+  ['draws', 'Estrazioni', "Sfoglia l'archivio anno per anno e cerca i numeri usciti"],
+  ['stats', 'Statistiche', 'Tabelle e grafici da consultare'],
+  ['formulas', 'Formule', "Carica un listato e cercane i riscontri nell'archivio"],
+];
+let tab = 'draws';
 
 /** The numbers of a draw as balls; `mark` gives a number its extra class, or nothing. */
 const balls = (numbers, mark = () => null, extra = false) =>
@@ -84,10 +94,49 @@ async function main() {
     ...years.map((y) => el('option', { value: y, text: y })),
     el('option', { value: ALL_YEARS, text: 'Tutti gli anni' }));
   const contains = document.getElementById('contains');
-  const render = () => view.replaceChildren(drawsTable(draws, year.value, wanted(contains.value)));
-  year.addEventListener('change', render);
-  contains.addEventListener('input', render);
+  const showDraws = () => view.replaceChildren(drawsTable(draws, year.value, wanted(contains.value)));
+  year.addEventListener('change', showDraws);
+  contains.addEventListener('input', showDraws);
+
+  // The formula rule sees a 10eLotto draw as one pseudo-wheel of its 20 numbers.
+  const asWheels = draws.map((draw) =>
+    ({ date: draw.date, contest: draw.contest, wheels: { '10elotto': draw.numbers } }));
+  Object.assign(formulaState, { game: '10elotto', load: async () => asWheels, sync: syncHash });
+
+  function render() {
+    document.getElementById('sections').replaceChildren(
+      ...SECTIONS.map(([id, label, about]) => el('button', {
+        type: 'button',
+        'aria-current': id === tab ? 'page' : null,
+        onclick: () => { tab = id; syncHash(); render(); },
+      }, el('b', { text: label }), el('span', { text: about }))));
+    document.getElementById('filters').hidden = tab !== 'draws';
+    if (tab === 'draws') showDraws();
+    else if (tab === 'formulas') view.replaceChildren(renderFormule());
+    else {
+      view.replaceChildren(el('section', { class: 'card' }, el('h2', { text: 'Statistiche' }),
+        el('p', { class: 'unavailable', text: 'Le statistiche del 10eLotto arriveranno presto.' })));
+    }
+    hideTip();
+  }
+
+  /** `#/draws`, `#/stats`, or the formulas with their own part: `#/formulas/5/20/ranking`. */
+  function syncHash() {
+    const parts = ['', tab, ...(tab === 'formulas' ? formulaHash() : [])];
+    history.replaceState(null, '', `#${parts.join('/')}`);
+  }
+
+  function readHash() {
+    const [, inHash, ...rest] = (location.hash.slice(1) || '').split('/');
+    if (!SECTIONS.some(([id]) => id === inHash)) return;
+    tab = inHash;
+    if (tab === 'formulas') readFormulaHash(rest);
+  }
+
+  readHash();
+  syncHash();
   render();
+  window.addEventListener('hashchange', () => { readHash(); render(); });
 }
 
 main();

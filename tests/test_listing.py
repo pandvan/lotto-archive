@@ -272,7 +272,7 @@ def test_the_lookback_flag_overrides_the_listing(tmp_path):
     path.write_text(
         json.dumps(listing.one_formula("71 81", wheel_count=2, lookback=4).as_dict())
     )
-    args = argparse.Namespace(listing=path, lookback=None, wheels=None)
+    args = argparse.Namespace(listing=path, lookback=None, wheels=None, game="lotto")
     assert formula.listing_from(args).lookback == 4
     args.lookback = 7
     assert formula.listing_from(args).lookback == 7
@@ -530,3 +530,33 @@ def test_an_unknown_scope_is_refused():
     draws, built = scoped()
     with pytest.raises(LottoError):
         listing.apply(draws, day(3), built, scope="whatever")
+
+
+def test_a_10elotto_draw_matches_when_the_search_numbers_are_among_its_20():
+    from lotto.diecielotto import as_draws
+
+    days = [datetime.date(2026, 1, d) for d in (1, 2, 3)]
+    records = [
+        {"date": day.isoformat(), "contest": n, "numbers": list(range(n, n + 20))}
+        for n, day in enumerate(days, start=1)
+    ]
+    draws, contests = as_draws(records)
+    assert contests[days[2]] == 3
+    line = listing.one_formula("3 22 # 60 # 21 80", wheel_count=1, lookback=1)
+    report = listing.apply(draws, days[2], line, colpi=1)
+    (match,) = report.matches
+    ambata, ambo = match.bets
+    # 60 never came out; 21 was among the 20 of the draw before.
+    assert ambata.clean and not ambo.clean and ambo.seen_number == 21
+    assert not listing.apply(draws, days[1], line).matches  # 22 is not in 2..21
+
+
+@pytest.mark.parametrize("flag", [["--wheels", "1"], ["--scope", "strict"], ["--play", "tutte"], ["--dirty"]])
+def test_options_about_wheels_are_refused_on_10elotto(monkeypatch, flag):
+    import sys
+
+    import formula
+
+    monkeypatch.setattr(sys, "argv", ["formula", "--game", "10elotto", *flag, "-s", "7 21"])
+    with pytest.raises(SystemExit):
+        formula.parse_args()

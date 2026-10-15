@@ -24,7 +24,7 @@ FALLBACK_URL = "https://www.lottoscientifico.com/archivio/lotto.zip"
 PRIMARY_MEMBER_SUFFIX = ".txt"
 FALLBACK_MEMBER_SUFFIX = ".dbf"
 
-USER_AGENT = "lotto-archive/1.0 (+https://github.com/; automated archive updater)"
+USER_AGENT = "lotto-archive/1.0 (+https://github.com/pandvan/lotto-archive; automated archive updater)"
 TIMEOUT = 60
 MAX_DOWNLOAD_BYTES = 64 * 1024 * 1024
 
