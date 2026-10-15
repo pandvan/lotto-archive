@@ -28,7 +28,7 @@ out in.
 
 from __future__ import annotations
 
-from .model import DrawSet, iso
+from .model import WHEELS, DrawSet, iso
 from .series import (
     NUMBERS,
     WINDOWS,
@@ -36,6 +36,7 @@ from .series import (
     drawn_count,
     gaps,
     number_keys,
+    series_for,
     window,
 )
 
@@ -90,9 +91,6 @@ def grid(draws: DrawSet) -> dict:
     ``null`` with ``last_seen`` when it never did. ``tutte`` is left out: a date's union
     of wheels has no positions.
     """
-    from .model import WHEELS
-    from .series import series_for
-
     if not draws:
         raise ValueError("empty archive")
     wheels = {}
@@ -121,20 +119,3 @@ def grid(draws: DrawSet) -> dict:
         }
     return {"last_draw": iso(max(draws)), "wheels": wheels}
 
-
-def compute_all(draws: DrawSet) -> dict:
-    """The tabellone for every wheel, for consumers who want only this table."""
-    from .series import SERIES_KEYS, series_for
-
-    if not draws:
-        raise ValueError("empty archive")
-    wheels = {}
-    for wheel in SERIES_KEYS:
-        series = series_for(draws, wheel)
-        if series:
-            wheels[wheel] = compute(series)
-    return {
-        "last_draw": iso(max(draws)),
-        "total_draws": len(draws),
-        "wheels": wheels,
-    }

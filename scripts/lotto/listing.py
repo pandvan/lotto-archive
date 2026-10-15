@@ -27,6 +27,10 @@ repeated number would drop: its wheels are then every wheel that produced a sear
 number, and they must still number ``SearchDrm``. How many wheels that check searches is the
 *scope* -- :data:`SCOPES`; the original searches the matching wheels.
 
+A 10eLotto draw goes through the same rule as a single pseudo-wheel of 20 numbers: a
+formula matches when all its search numbers are among them, and its bets are checked
+and played there. Wheel counts, scopes, plays and dirty matches change nothing on it.
+
 Both the numbers and the bets are written down in advance; the archive only says
 whether they came up. Nothing here makes a number more likely to be drawn -- a formula
 that matches has told you about one draw that already happened, and the *retrovisione*
@@ -318,10 +322,14 @@ class ListingReport:
 
 
 def wheels_by_number(day: dict[str, list[int]]) -> dict[int, tuple[str, ...]]:
-    """Number -> the wheels of this draw that produced it, canonical order."""
+    """Number -> the wheels of this draw that produced it, in the draw's own order.
+
+    Nothing here names a wheel: whatever wheels the draw holds are the ones searched,
+    in the order it holds them, which in the archive is the canonical one.
+    """
     out: dict[int, list[str]] = {}
-    for wheel in WHEELS:
-        for number in day.get(wheel, ()):
+    for wheel, numbers in day.items():
+        for number in numbers:
             holders = out.setdefault(number, [])
             if wheel not in holders:
                 holders.append(wheel)
@@ -544,19 +552,15 @@ def outcome_of(
     """
     if on not in PLAYS:
         raise LottoError(f"unknown play {on!r}, expected one of {', '.join(PLAYS)}")
-    wheels = [
-        wheel
-        for wheel in WHEELS
-        if wheel in play or on == "nazionale" or (on == "tutte" and wheel != "nazionale")
-    ]
     window = dates[index + 1:index + 1 + colpi]
     rows = 0
     won = None
     for colpo, day in enumerate(window, start=1):
         hit = []
-        for wheel in wheels:
-            row = draws[day].get(wheel)
-            if not row:
+        for wheel, row in draws[day].items():
+            if not row or not (
+                wheel in play or on == "nazionale" or (on == "tutte" and wheel != "nazionale")
+            ):
                 continue
             rows += 1
             if all(number in row for number in bet.numbers):
@@ -618,7 +622,7 @@ def apply(
         if any(not wheels if dirty else len(wheels) != 1 for wheels in wheels_of):
             continue
         wheels = tuple(
-            sorted({wheel for wheels in wheels_of for wheel in wheels}, key=WHEELS.index)
+            sorted({wheel for wheels in wheels_of for wheel in wheels}, key=list(day).index)
         )
         if len(wheels) != listing.wheel_count:
             continue

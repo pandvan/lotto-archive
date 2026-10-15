@@ -23,6 +23,9 @@ FIELD_START = {
     "extra": datetime.date(2021, 10, 21),
 }
 
+#: The one pseudo-wheel a 10eLotto draw is, when the formula rule runs on it.
+WHEEL = "10elotto"
+
 TIED_WHEELS = tuple(wheel for wheel in WHEELS if wheel != "nazionale")
 NUMBERS = 20
 EXTRA = 15
@@ -75,6 +78,15 @@ def build(draws: DrawSet) -> tuple[list[dict], list[str]]:
         if fields is not None:
             records.append({"date": iso(day), "contest": contests[day], **fields})
     return records, errors
+
+
+def as_draws(records: list[dict]) -> tuple[DrawSet, dict[datetime.date, int]]:
+    """The records as a draw set of one :data:`WHEEL` each, plus their contests."""
+    days = {datetime.date.fromisoformat(r["date"]): r for r in records}
+    return (
+        {day: {WHEEL: r["numbers"]} for day, r in days.items()},
+        {day: r["contest"] for day, r in days.items()},
+    )
 
 
 def render(records: list[dict]) -> dict[str, str]:

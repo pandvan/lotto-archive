@@ -10,6 +10,7 @@ import pytest
 
 from conftest import REPO_ROOT
 from lotto import listing
+from lotto.diecielotto import WHEEL
 from lotto.model import WHEELS, iso
 
 NODE = shutil.which("node")
@@ -26,19 +27,24 @@ console.log(JSON.stringify(scanListing(
 @pytest.mark.skipif(NODE is None, reason="node is not installed")
 @pytest.mark.parametrize("play", listing.PLAYS)
 @pytest.mark.parametrize("dirty", [False, True])
-def test_the_js_port_finds_what_the_python_finds(play, dirty):
+@pytest.mark.parametrize("game", ["lotto", "10elotto"])
+def test_the_js_port_finds_what_the_python_finds(play, dirty, game):
     rng = random.Random(0)
     start = datetime.date(2026, 1, 1)
+    # A 10eLotto draw is one pseudo-wheel of 20 numbers, sorted as the archive holds it.
+    rows = {WHEEL: 20} if game == "10elotto" else dict.fromkeys(WHEELS, 5)
     draws = {
         start + datetime.timedelta(days=n): {
-            wheel: rng.sample(range(1, 91), 5) for wheel in WHEELS
+            wheel: sorted(rng.sample(range(1, 91), size)) if game == "10elotto"
+            else rng.sample(range(1, 91), size)
+            for wheel, size in rows.items()
         }
         for n in range(60)
     }
     payload = {
         "name": "parity",
         "size": 2,
-        "wheels": 2,
+        "wheels": 2 if game == "lotto" else 1,
         "lookback": 3,
         "formulas": [
             {
@@ -62,12 +68,13 @@ def test_the_js_port_finds_what_the_python_finds(play, dirty):
         for match in report.matches
     ]
     # The sample has to exercise every branch, or agreeing on it proves nothing.
-    assert dirty == any(
-        len({n for numbers in match["found"].values() for n in numbers})
-        < sum(map(len, match["found"].values()))
-        for match in expected
-    )
-    assert any(match["isotopic"] for match in expected)
+    if game == "lotto":
+        assert dirty == any(
+            len({n for numbers in match["found"].values() for n in numbers})
+            < sum(map(len, match["found"].values()))
+            for match in expected
+        )
+        assert any(match["isotopic"] for match in expected)
     assert any(not match["isotopic"] for match in expected)
     bets = [bet for match in expected for kind in match["bets"].values() for bet in kind]
     assert any(bet["clean"] for bet in bets) and any(not bet["clean"] for bet in bets)
