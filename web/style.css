@@ -317,6 +317,8 @@ header h1 {
 select,
 input[type="number"],
 input[type="search"],
+input[type="text"],
+textarea,
 button {
   font: inherit;
   color: var(--ink);
@@ -790,6 +792,28 @@ footer {
   color: var(--ink-2);
   font-size: 13px;
 }
+
+/* ---------------------------------------------------------- listing builder */
+
+.form-row { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 12px; }
+.form-row .field { flex: 1 1 120px; }
+.form-row .field:first-child { flex: 3 1 220px; }
+.formula .field { margin-top: 12px; }
+.formula .top { align-items: center; }
+.formula .top h2 { margin: 0; font-size: 15px; }
+.sections + main { margin-top: 16px; }
+.card .tabs { align-items: center; margin: 16px 0 0; }
+.formula textarea { width: 100%; box-sizing: border-box; cursor: text; }
+.formula input[type="text"], .form-row input[type="text"] { cursor: text; min-width: 0; }
+.bet-row { display: grid; grid-template-columns: 8.5em 1fr auto; gap: 6px; margin-bottom: 6px; }
+.bet-row .error { grid-column: 1 / -1; }
+.hint { color: var(--ink-2); font-size: 12px; }
+.error { color: var(--critical); font-size: 12px; }
+.error:empty { display: none; }
+.invalid { border-color: var(--critical) !important; }
+.actions { margin-bottom: 20px; }
+.actions .hint { margin: 8px 0 0; }
+button.primary { background: var(--series-1); border-color: var(--series-1); color: #fff; font-weight: 600; }
 
 @media (max-width: 560px) {
   .filters { position: static; }
