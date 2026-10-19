@@ -194,4 +194,4 @@ function scanListing(draws, listing, since = null, colpi = 0, on = 'match', dirt
   return out;
 }
 
-if (typeof module !== 'undefined') module.exports = { readListing, scanListing };
+if (typeof module !== 'undefined') module.exports = { BET_ORDER, readListing, scanListing };
