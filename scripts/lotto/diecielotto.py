@@ -1,13 +1,17 @@
 """The 10eLotto draw tied to Lotto, derived from the Lotto draw of the same evening.
 
 Nothing here is downloaded. The 20 numbers, the gold numbers and the extra numbers are
-a pure function of what the ten city wheels (and, rarely, Nazionale) drew.
+a pure function of what the ten city wheels (and, rarely, Nazionale) drew; the one
+exception is the extra numbers ADM had to draw itself, taken from what it published.
 """
 
 from __future__ import annotations
 
 import datetime
+import json
 import re
+from collections.abc import Callable
+from pathlib import Path
 
 from .archive import ALL_FILE, ALL_MIN_FILE, LATEST_FILE, render_json, render_json_min
 from .model import WHEELS, DrawSet, LottoError, contest_numbers, iso
@@ -31,12 +35,18 @@ NUMBERS = 20
 EXTRA = 15
 
 
-def derive(day: datetime.date, wheels: dict[str, list[int]]) -> dict | None:
+def derive(
+    day: datetime.date, wheels: dict[str, list[int]], published: dict | None = None
+) -> dict | None:
     """The 10eLotto fields for one Lotto draw, or ``None`` while a tied wheel is missing.
 
     Walk the first two numbers of every wheel, then the third of every wheel, the
     fourth, the fifth, and last Nazionale, dropping numbers already seen. The first 20
     are the draw, the next 15 the extra numbers.
+
+    When even Nazionale leaves the extra numbers short, ADM draws the missing ones
+    (DD 2009/16597, art. 2) and no rule derives them: they come from ``published``,
+    the record ADM published for the day, as on 2026-10-22.
     """
     if any(wheel not in wheels for wheel in TIED_WHEELS):
         return None
@@ -45,6 +55,11 @@ def derive(day: datetime.date, wheels: dict[str, list[int]]) -> dict | None:
     walk += [row[column] for column in (2, 3, 4) for row in rows]
     walk += wheels.get("nazionale", [])
     distinct = list(dict.fromkeys(walk))
+    if published and NUMBERS <= len(distinct) < NUMBERS + EXTRA:
+        extra = published.get("extra", [])
+        if published.get("date") != iso(day) or not set(distinct[NUMBERS:]) <= set(extra):
+            raise LottoError(f"{iso(day)}: the published extra numbers disagree with the wheels")
+        distinct += [number for number in extra if number not in distinct]
 
     fields = {
         "numbers": sorted(distinct[:NUMBERS]),
@@ -63,21 +78,38 @@ def derive(day: datetime.date, wheels: dict[str, list[int]]) -> dict | None:
     return record
 
 
-def build(draws: DrawSet) -> tuple[list[dict], list[str]]:
-    """Every record from ``START`` on, oldest first, plus the draws that failed to derive."""
+def build(
+    draws: DrawSet,
+    published: Callable[[datetime.date, int], dict | None] = lambda day, contest: None,
+) -> tuple[list[dict], list[str]]:
+    """Every record from ``START`` on, oldest first, plus the draws that failed to derive.
+
+    ``published(day, contest)`` is asked only for a draw the wheels alone cannot derive.
+    """
     # The contest is the Lotto one, so it is numbered over every Lotto draw of the year.
     contests = contest_numbers(list(draws))
     records: list[dict] = []
     errors: list[str] = []
     for day in sorted(day for day in draws if day >= START):
         try:
-            fields = derive(day, draws[day])
+            try:
+                fields = derive(day, draws[day])
+            except LottoError:
+                fields = derive(day, draws[day], published(day, contests[day]))
         except LottoError as exc:
             errors.append(str(exc))
             continue
         if fields is not None:
             records.append({"date": iso(day), "contest": contests[day], **fields})
     return records, errors
+
+
+def recorded(root: Path) -> dict[str, dict]:
+    """The records already under ``data/10elotto/``, by ISO date."""
+    path = root / DATA_DIR / ALL_FILE
+    if not path.exists():
+        return {}
+    return {r["date"]: r for r in json.loads(path.read_text(encoding="utf-8"))["draws"]}
 
 
 def as_draws(records: list[dict]) -> tuple[DrawSet, dict[datetime.date, int]]:

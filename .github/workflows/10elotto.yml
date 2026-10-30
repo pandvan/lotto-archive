@@ -1,8 +1,8 @@
 name: Derive the 10eLotto archive
 
-# The 10eLotto files are a pure function of the committed Lotto files, and are not
-# critical. They are derived here, after the Lotto commit, so a failure can never block
-# or undo it.
+# The 10eLotto files are a function of the committed Lotto files (plus, very rarely,
+# extra numbers ADM drew itself, fetched once from ADM), and are not critical. They are
+# derived here, after the Lotto commit, so a failure can never block or undo it.
 #
 # A push made with GITHUB_TOKEN does not start another workflow, so `workflow_run` is
 # the trigger that fires for the data commits. The job is idempotent: a run with
@@ -37,7 +37,9 @@ jobs:
       - name: Derive
         id: derive
         continue-on-error: true
-        run: python scripts/diecielotto.py
+        run: |
+          pip install -q -r requirements.txt
+          python scripts/diecielotto.py
 
       - name: Commit
         run: |
@@ -54,9 +56,7 @@ jobs:
         id: adm
         if: ${{ !cancelled() }}
         continue-on-error: true
-        run: |
-          pip install -q -r requirements.txt
-          python scripts/check_10elotto.py
+        run: python scripts/check_10elotto.py
 
       - name: Report a failure
         if: ${{ failure() || steps.derive.outcome == 'failure' || steps.adm.outcome == 'failure' }}

@@ -1,21 +1,31 @@
 #!/usr/bin/env python3
 """Derive the 10eLotto archive under ``data/10elotto/`` from the committed Lotto archive.
 
-Reads ``data/lotto/`` and nothing else: no network, idempotent. A draw that cannot be
-derived is skipped and reported, the others are still written, and the exit is non-zero.
+Reads ``data/lotto/``, idempotent. The one exception is a draw whose extra numbers ADM
+had to draw itself: they are kept from ``data/10elotto/`` or, the first time, fetched
+from ADM; ``--check`` never fetches. A draw that cannot be derived is skipped and
+reported, the others are still written, and the exit is non-zero.
 """
 
 from __future__ import annotations
 
 import argparse
+import datetime
 import sys
 from pathlib import Path
 
 from _common import REPO_ROOT, summary
 
+from lotto import sources
 from lotto.archive import load
-from lotto.model import LottoError
-from lotto.diecielotto import DATA_DIR, build, render
+from lotto.model import LottoError, iso
+from lotto.diecielotto import ADM_URL, DATA_DIR, build, parse_adm, recorded, render
+
+
+def fetch_adm(year: int, contest: int) -> dict | None:
+    """The record ADM publishes for a contest, or ``None`` when it has no such draw yet."""
+    url = ADM_URL.format(year=year, contest=contest)
+    return parse_adm(sources.fetch(sources.build_session(), url).content.decode("utf-8"))
 
 
 def main() -> int:
@@ -28,7 +38,14 @@ def main() -> int:
     )
     args = parser.parse_args()
 
-    records, errors = build(load(args.root))
+    known = recorded(args.root)
+
+    def published(day: datetime.date, contest: int) -> dict | None:
+        if iso(day) in known or args.check:
+            return known.get(iso(day))
+        return fetch_adm(day.year, contest)
+
+    records, errors = build(load(args.root), published)
     for error in errors:
         print(f"error: {error}", file=sys.stderr)
 
