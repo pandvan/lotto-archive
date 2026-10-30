@@ -34,7 +34,7 @@ from pathlib import Path
 from _common import REPO_ROOT
 
 from lotto.archive import load
-from lotto.diecielotto import as_draws, build
+from lotto.diecielotto import as_draws, build, recorded
 from lotto.listing import (
     DEFAULT_LOOKBACK,
     DEFAULT_PLAY,
@@ -332,7 +332,8 @@ def main() -> int:
         return 1
     if args.game == "10elotto":
         # Derived on the fly, as scripts/diecielotto.py derives data/10elotto/.
-        draws, contests = as_draws(build(draws)[0])
+        known = recorded(args.root)
+        draws, contests = as_draws(build(draws, lambda day, _: known.get(iso(day)))[0])
     else:
         contests = contest_numbers(list(draws))
 

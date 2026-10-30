@@ -43,6 +43,30 @@ FEB_20_WHEELS = {
     "nazionale": [63, 53, 25, 24, 15],
 }
 
+#: Lotto draw of 2026-10-22: even with Nazionale only 34 distinct numbers, and ADM drew 22.
+OCT_22 = datetime.date(2026, 10, 22)
+OCT_22_WHEELS = {
+    "bari": [89, 68, 23, 7, 50],
+    "cagliari": [21, 80, 4, 51, 43],
+    "firenze": [34, 25, 5, 77, 90],
+    "genova": [77, 34, 37, 90, 54],
+    "milano": [18, 7, 61, 35, 3],
+    "napoli": [41, 90, 40, 76, 78],
+    "palermo": [18, 80, 78, 12, 84],
+    "roma": [40, 3, 7, 86, 30],
+    "torino": [34, 56, 21, 10, 41],
+    "venezia": [63, 78, 43, 68, 80],
+    "nazionale": [76, 38, 65, 21, 3],
+}
+OCT_22_ADM = {
+    "date": "2026-10-22",
+    "contest": 169,
+    "numbers": [3, 4, 5, 7, 18, 21, 23, 25, 34, 37, 40, 41, 56, 63, 68, 77, 78, 80, 89, 90],
+    "gold": 89,
+    "double_gold": 68,
+    "extra": [10, 12, 22, 30, 35, 38, 43, 50, 51, 54, 61, 65, 76, 84, 86],
+}
+
 
 def test_derive_equals_the_official_draw():
     assert derive(OCT_10, OCT_10_WHEELS) == {
@@ -95,6 +119,24 @@ def test_build_skips_and_reports_a_draw_that_cannot_be_derived():
     assert len(errors) == 1 and "2026-02-20" in errors[0]
 
 
+def test_extra_numbers_adm_drew_itself_come_from_the_published_record():
+    with pytest.raises(LottoError, match="34 distinct"):
+        derive(OCT_22, OCT_22_WHEELS)
+    assert derive(OCT_22, OCT_22_WHEELS, OCT_22_ADM) == {
+        k: v for k, v in OCT_22_ADM.items() if k not in ("date", "contest")
+    }
+    asked = []
+    records, errors = build(
+        {OCT_10: OCT_10_WHEELS, OCT_22: OCT_22_WHEELS},
+        lambda day, contest: asked.append((day, contest)) or OCT_22_ADM,
+    )
+    assert errors == [] and asked == [(OCT_22, 2)]
+    assert records[1]["extra"] == OCT_22_ADM["extra"]
+    # Not published yet, or published for another day, or at odds with the wheels.
+    for published in (None, {**OCT_22_ADM, "date": "2026-10-23"}, {**OCT_22_ADM, "extra": [1] * 15}):
+        assert build({OCT_22: OCT_22_WHEELS}, lambda day, contest: published)[1]
+
+
 def test_render_of_nothing_is_nothing():
     assert render([]) == {}
 
@@ -126,6 +168,19 @@ def test_the_command_writes_then_checks_clean(tmp_path, monkeypatch):
     assert run(monkeypatch, tmp_path) == 0
     assert not (out / "1999.json").exists()
     assert run(monkeypatch, tmp_path, "--check") == 0
+
+
+def test_the_command_fetches_adm_once_and_check_never(tmp_path, monkeypatch):
+    archive.write(tmp_path, {OCT_22: OCT_22_WHEELS}, generated_at="x", sources={})
+    fetched = []
+    monkeypatch.setattr(cli, "fetch_adm", lambda year, contest: fetched.append(contest) or OCT_22_ADM)
+    assert run(monkeypatch, tmp_path, "--check") == 1
+    assert fetched == []
+    assert run(monkeypatch, tmp_path) == 0
+    assert fetched == [1]
+    assert run(monkeypatch, tmp_path) == 0
+    assert run(monkeypatch, tmp_path, "--check") == 0
+    assert fetched == [1]
 
 
 def test_the_command_writes_nothing_without_tied_wheels(tmp_path, monkeypatch):
