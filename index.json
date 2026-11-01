@@ -1,9 +1,9 @@
 {
-  "generated_at": "2026-10-31T10:48:50Z",
+  "generated_at": "2026-11-01T11:45:34Z",
   "first_date": "1939-01-07",
-  "last_date": "2026-10-30",
-  "draw_count": 7410,
-  "wheel_rows": 77385,
+  "last_date": "2026-10-31",
+  "draw_count": 7411,
+  "wheel_rows": 77396,
   "wheels": [
     "bari",
     "cagliari",
@@ -20,8 +20,8 @@
   "sources": {
     "primary": {
       "url": "https://www.brightstarlottery.it/STORICO_ESTRAZIONI_LOTTO/storico.zip",
-      "etag": "\"a83b2-65f15eb1b8285\"",
-      "last_modified": "Fri, 30 Oct 2026 22:00:03 GMT",
+      "etag": "\"a8412-65f2a08f157c5\"",
+      "last_modified": "Sat, 31 Oct 2026 22:00:03 GMT",
       "used": true
     },
     "fallback": {
@@ -644,9 +644,9 @@
     {
       "year": 2026,
       "file": "data/lotto/2026.json",
-      "draw_count": 174,
+      "draw_count": 175,
       "first_date": "2026-01-02",
-      "last_date": "2026-10-30"
+      "last_date": "2026-10-31"
     }
   ]
 }
