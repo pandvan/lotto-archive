@@ -4,7 +4,7 @@ Every Italian Lotto draw since **7 January 1939**, as plain JSON, updated automa
 by a GitHub Action.
 
 ```
-7,413 draws · 77,418 wheel results · 1939-01-07 → 2026-11-05
+7,414 draws · 77,429 wheel results · 1939-01-07 → 2026-11-06
 ```
 
 ## Layout
