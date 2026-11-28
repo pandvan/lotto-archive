@@ -104,9 +104,10 @@ def test_a_search_number_on_two_wheels_makes_the_play_dirty(tmp_path):
     # Asked for, the dirty play matches, and both wheels report the repeated number.
     match, = listing.apply(draws, day(3), one_formula(tmp_path), dirty=True).matches
     assert match.found == {"bari": (71,), "roma": (71, 81)}
-    # The wheels must still number what the listing declares.
+    # A copy on a third wheel: every pair holding both numbers is a match of its own.
     wide = archive(QUIET, QUIET, {**draws[day(3)], "milano": [71, 11, 12, 13, 14]})
-    assert not listing.apply(wide, day(3), one_formula(tmp_path), dirty=True).satisfied
+    matches = listing.apply(wide, day(3), one_formula(tmp_path), dirty=True).matches
+    assert [match.wheels for match in matches] == [("bari", "roma"), ("roma", "milano")]
 
 
 def test_wheel_bounds_follow_how_many_numbers_are_searched():

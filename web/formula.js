@@ -21,6 +21,13 @@ const BET_ORDER = ['ambata', 'ambo', 'terno', 'quaterna', 'cinquina'];
  */
 const PLAYS = ['match', 'tutte', 'nazionale'];
 
+/** Every way to pick `size` of `items`, in order: itertools.combinations. */
+function combinations(items, size) {
+  if (!size) return [[]];
+  return items.flatMap((item, i) =>
+    combinations(items.slice(i + 1), size - 1).map((rest) => [item, ...rest]));
+}
+
 /** A JSON array of numbers, checked and deduplicated in order. */
 function checkedNumbers(values, where) {
   if (!Array.isArray(values)) throw new Error(`${where}: not a list of numbers`);
@@ -139,7 +146,8 @@ function outcomeOf(draws, index, numbers, play, colpi, on) {
  *
  * A formula matches a draw when each of its search numbers came out on exactly one
  * wheel and those wheels number `listing.wheels`. With `dirty`, a search number may be
- * on several wheels, and every wheel holding one is a wheel of the match.
+ * on several wheels, and each group of `listing.wheels` wheels that together hold every
+ * search number is a match of its own.
  */
 function scanListing(draws, listing, since = null, colpi = 0, on = 'match', dirty = false) {
   const out = [];
@@ -160,35 +168,40 @@ function scanListing(draws, listing, since = null, colpi = 0, on = 'match', dirt
     for (const formula of listing.formulas) {
       const wheelsOf = formula.numbers.map((number) => holders.get(number) ?? []);
       if (wheelsOf.some((wheels) => (dirty ? !wheels.length : wheels.length !== 1))) continue;
-      const wheels = order.filter((wheel) => wheelsOf.some((held) => held.includes(wheel)));
-      if (wheels.length !== listing.wheels) continue;
+      const holding = order.filter((wheel) => wheelsOf.some((held) => held.includes(wheel)));
+      // A clean play has one number per wheel, so only all of its wheels can qualify.
+      if (!dirty && holding.length !== listing.wheels) continue;
+      const groups = combinations(holding, listing.wheels).filter((group) =>
+        wheelsOf.every((held) => group.some((wheel) => held.includes(wheel))));
 
-      const found = Object.fromEntries(wheels.map((wheel) => [
-        wheel,
-        formula.numbers.filter((_, i) => wheelsOf[i].includes(wheel)),
-      ]));
-      // The loose isotopia of lotto-convergence: any two search numbers in the same
-      // position on two wheels, not only the same number.
-      const positions = wheels.map((wheel) =>
-        found[wheel].map((number) => draw.wheels[wheel].indexOf(number)));
-      const isotopic = positions.some((first, i) =>
-        positions.slice(i + 1).some((second) => first.some((p) => second.includes(p))));
+      for (const wheels of groups) {
+        const found = Object.fromEntries(wheels.map((wheel) => [
+          wheel,
+          formula.numbers.filter((_, i) => wheelsOf[i].includes(wheel)),
+        ]));
+        // The loose isotopia of lotto-convergence: any two search numbers in the same
+        // position on two wheels, not only the same number.
+        const positions = wheels.map((wheel) =>
+          found[wheel].map((number) => draw.wheels[wheel].indexOf(number)));
+        const isotopic = positions.some((first, i) =>
+          positions.slice(i + 1).some((second) => first.some((p) => second.includes(p))));
 
-      out.push({
-        date: draw.date,
-        formula,
-        wheels,
-        found,
-        isotopic,
-        bets: Object.fromEntries(BET_ORDER.map((name) => [
-          name,
-          formula.bets[name].map((numbers) => {
-            const bet = checkBet(draws, index, numbers, wheels, listing.lookback);
-            if (colpi) bet.outcome = outcomeOf(draws, index, numbers, wheels, colpi, on);
-            return bet;
-          }),
-        ])),
-      });
+        out.push({
+          date: draw.date,
+          formula,
+          wheels,
+          found,
+          isotopic,
+          bets: Object.fromEntries(BET_ORDER.map((name) => [
+            name,
+            formula.bets[name].map((numbers) => {
+              const bet = checkBet(draws, index, numbers, wheels, listing.lookback);
+              if (colpi) bet.outcome = outcomeOf(draws, index, numbers, wheels, colpi, on);
+              return bet;
+            }),
+          ])),
+        });
+      }
     }
   });
   return out;
