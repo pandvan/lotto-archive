@@ -23,8 +23,9 @@ one** wheel -- a number on two wheels makes the play *sporca* and drops the form
 and those wheels number exactly ``SearchDrm``. The bets of a matching formula are then
 each checked against the ``Rear`` draws before it: a bet any of whose numbers already
 came out there is reported as rejected. Asking for *dirty* matches keeps the formula a
-repeated number would drop: its wheels are then every wheel that produced a search
-number, and they must still number ``SearchDrm``. How many wheels that check searches is the
+repeated number would drop: every group of ``SearchDrm`` wheels that together hold all
+the search numbers is then a match of its own, whatever copies sit on other wheels.
+How many wheels that check searches is the
 *scope* -- :data:`SCOPES`; the original searches the matching wheels.
 
 A 10eLotto draw goes through the same rule as a single pseudo-wheel of 20 numbers: a
@@ -43,6 +44,7 @@ import datetime
 import json
 import re
 from dataclasses import dataclass, replace
+from itertools import combinations
 from pathlib import Path
 
 from .model import WHEELS, DrawSet, LottoError, iso
@@ -594,7 +596,8 @@ def apply(
     gets one too: what to do with it is the reader's call.
 
     ``dirty`` also matches a formula one of whose search numbers came out on more than
-    one wheel. Every wheel holding a search number is then a wheel of the match.
+    one wheel. Each group of ``wheel_count`` wheels that together hold every search
+    number is then a match, so one formula can match a draw more than once.
     """
     dates = sorted(draws)
     try:
@@ -624,39 +627,47 @@ def apply(
         wheels = tuple(
             sorted({wheel for wheels in wheels_of for wheel in wheels}, key=list(day).index)
         )
-        if len(wheels) != listing.wheel_count:
+        # Every group of that many holding wheels with all the numbers among them. A
+        # clean play has one number per wheel, so only all of its wheels can qualify.
+        if not dirty and len(wheels) != listing.wheel_count:
             continue
+        groups = [
+            group
+            for group in combinations(wheels, listing.wheel_count)
+            if all(set(group) & set(held) for held in wheels_of)
+        ]
 
-        found = {
-            wheel: tuple(
-                number
-                for number, holder in zip(formula.numbers, wheels_of)
-                if wheel in holder
+        for wheels in groups:
+            found = {
+                wheel: tuple(
+                    number
+                    for number, holder in zip(formula.numbers, wheels_of)
+                    if wheel in holder
+                )
+                for wheel in wheels
+            }
+            matches.append(
+                Match(
+                    formula=formula,
+                    wheels=wheels,
+                    found=found,
+                    isotopic=_isotopic(day, found),
+                    bets=tuple(
+                        replace(
+                            checked,
+                            outcome=outcome_of(
+                                draws, dates, index, bet, checked.play, colpi, play
+                            ),
+                        )
+                        if colpi
+                        else checked
+                        for bet in formula.bets
+                        for checked in check_rear(
+                            draws, dates, index, bet, wheels, listing.lookback, scope
+                        )
+                    ),
+                )
             )
-            for wheel in wheels
-        }
-        matches.append(
-            Match(
-                formula=formula,
-                wheels=wheels,
-                found=found,
-                isotopic=_isotopic(day, found),
-                bets=tuple(
-                    replace(
-                        checked,
-                        outcome=outcome_of(
-                            draws, dates, index, bet, checked.play, colpi, play
-                        ),
-                    )
-                    if colpi
-                    else checked
-                    for bet in formula.bets
-                    for checked in check_rear(
-                        draws, dates, index, bet, wheels, listing.lookback, scope
-                    )
-                ),
-            )
-        )
     if clean_only:
         matches = [match for match in matches if match.all_clean]
     return ListingReport(

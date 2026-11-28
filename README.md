@@ -305,8 +305,9 @@ How a formula is applied:
 
 1. **Found** — every *numero di ricerca* must have come out on **exactly one** wheel: a
    number on two wheels makes the play *sporca* and drops the formula. Those wheels must
-   number exactly `SearchDrm`. `--dirty` keeps the *sporca* formula: every wheel holding
-   a search number then counts towards `SearchDrm`.
+   number exactly `SearchDrm`. `--dirty` keeps the *sporca* formula: each group of
+   `SearchDrm` wheels that together hold all the search numbers is a match of its own,
+   so one formula can match a draw more than once.
 2. **Isotopia** — reported when two of the matching wheels hold a search number in the
    same extraction position. It is recorded, not required.
 3. **Retrovisione** — each bet is checked against the `Rear` preceding draws. A bet

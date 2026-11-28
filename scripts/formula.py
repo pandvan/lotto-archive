@@ -124,8 +124,8 @@ def parse_args() -> argparse.Namespace:
         "--dirty",
         action="store_true",
         help="also match a formula one of whose search numbers came out on more than "
-        "one wheel — a giocata sporca, dropped by default. Every wheel holding a "
-        "search number then counts towards --wheels",
+        "one wheel — a giocata sporca, dropped by default. Each group of --wheels "
+        "wheels holding all the search numbers is then a match of its own",
     )
     parser.add_argument(
         "--colpi",
